@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<link rel="manifest" href="./manifest.json">
+
+<meta name="theme-color" content="#f2f2f7">
+
+<link
+    rel="apple-touch-icon"
+    href="./icons/apple-touch-icon.png"
+>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+    <title>Controle de Produção</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        *{
+            box-sizing:border-box;
+            margin:0;
+            padding:0;
+            -webkit-tap-highlight-color:transparent;
+        }
+
+        :root{
+            --bg:#f2f2f7;
+            --card:#ffffff;
+            --text:#111111;
+            --muted:#6e6e73;
+            --border:#e5e5ea;
+            --blue:#007aff;
+            --blue-dark:#0066d6;
+            --green:#34c759;
+            --whatsapp:#25D366;
+        }
+
+        html,body{
+            min-height:100%;
+        }
+
+        body{
+            background:var(--bg);
+            color:var(--text);
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "SF Pro Display",
+                "SF Pro Text",
+                "Segoe UI",
+                Roboto,
+                Arial,
+                sans-serif;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            padding:
+                max(20px, env(safe-area-inset-top))
+                20px
+                max(20px, env(safe-area-inset-bottom))
+                20px;
+        }
+
+        .app{
+            width:100%;
+            max-width:430px;
+        }
+
+        .brand{
+            text-align:center;
+            margin-bottom:28px;
+        }
+
+        .brand-icon{
+            width:68px;
+            height:68px;
+            margin:0 auto 17px;
+            border-radius:21px;
+            background:linear-gradient(135deg, #007AFF, #0055CC);
+            color:#fff;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:23px;
+            font-weight:700;
+            letter-spacing:-1px;
+            box-shadow:
+                0 12px 30px rgba(0,122,255,.25);
+        }
+
+        .brand h1{
+            font-size:25px;
+            line-height:1.15;
+            font-weight:700;
+            letter-spacing:-.6px;
+        }
+
+        .brand p{
+            margin-top:6px;
+            color:var(--muted);
+            font-size:15px;
+        }
+
+        .card{
+            background:var(--card);
+            border-radius:25px;
+            padding:25px 21px 21px;
+            box-shadow:
+                0 12px 35px rgba(0,0,0,.07),
+                0 2px 8px rgba(0,0,0,.035);
+        }
+
+        .screen{
+            display:none;
+            animation:fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn{
+            from{opacity:0;transform:translateY(6px);}
+            to{opacity:1;transform:translateY(0);}
+        }
+
+        .screen.active{
+            display:block;
+        }
+
+        .screen-title{
+            font-size:22px;
+            font-weight:700;
+            letter-spacing:-.4px;
+            margin-bottom:6px;
+        }
+
+        .screen-subtitle{
+            color:var(--muted);
+            font-size:14px;
+            line-height:1.45;
+            margin-bottom:22px;
+        }
+
+        .field{
+            margin-bottom:14px;
+        }
+
+        .field label{
+            display:block;
+            margin:0 0 7px 3px;
+            font-size:13px;
+            font-weight:600;
+            color:#3c3c43;
+        }
+
+        .input-wrap{
+            position:relative;
+        }
+
+        input,
+        select,
+        textarea{
+            width:100%;
+            border:1px solid var(--border);
+            background:#f8f8fa;
+            color:var(--text);
+            border-radius:14px;
+            outline:none;
+            font-family:inherit;
+            font-size:16px;
+            transition:
+                border-color .18s ease,
+                background .18s ease,
+                box-shadow .18s ease;
+        }
+
+        input,
+        select{
+            height:51px;
+            padding:0 15px;
+        }
+
+        textarea{
+            min-height:95px;
+            padding:13px 15px;
+            resize:vertical;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus{
+            background:#fff;
+            border-color:rgba(0,122,255,.55);
+            box-shadow:0 0 0 4px rgba(0,122,255,.10);
+        }
+
+        .password-input{
+            padding-right:52px;
+        }
+
+        .password-toggle{
+            position:absolute;
+            right:5px;
+            top:5px;
+            width:42px;
+            height:41px;
+            border:0;
+            background:transparent;
+            color:#6e6e73;
+            border-radius:11px;
+            font-size:19px;
+            cursor:pointer;
+        }
+
+        .password-toggle:active{
+            background:#e9e9ee;
+        }
+
+        .primary{
+            width:100%;
+            height:51px;
+            border:0;
+            border-radius:15px;
+            background:var(--blue);
+            color:#fff;
+            font-family:inherit;
+            font-size:16px;
+            font-weight:600;
+            cursor:pointer;
+            box-shadow:0 6px 15px rgba(0,122,255,.20);
+            transition:
+                transform .12s ease,
+                background .15s ease;
+        }
+
+        .primary:active{
+            transform:scale(.985);
+            background:var(--blue-dark);
+        }
+
+        .primary:disabled{
+            opacity:.55;
+            cursor:not-allowed;
+            transform:none;
+        }
+
+        .whatsapp-btn{
+            background:linear-gradient(135deg, #25D366, #128C7E);
+            box-shadow:0 4px 14px rgba(37,211,102,.25);
+            margin-top:8px;
+        }
+
+        .whatsapp-btn:active{
+            background:linear-gradient(135deg, #1FB859, #0F7A6E);
+        }
+
+        .secondary{
+            width:100%;
+            height:48px;
+            border:1px solid var(--border);
+            border-radius:14px;
+            background:#f8f8fa;
+            color:var(--blue);
+            font-family:inherit;
+            font-size:15px;
+            font-weight:600;
+            cursor:pointer;
+            margin-top:10px;
+            transition:background .15s ease;
+        }
+
+        .secondary:active{
+            background:#e9f3ff;
+        }
+
+        .divider{
+            height:1px;
+            background:var(--border);
+            margin:24px 0 20px;
+            position:relative;
+        }
+
+        .divider span{
+            position:absolute;
+            left:50%;
+            top:50%;
+            transform:translate(-50%,-50%);
+            background:var(--card);
+            padding:0 12px;
+            color:var(--muted);
+            font-size:13px;
+        }
+
+        .message{
+            display:none;
+            border-radius:13px;
+            padding:12px 13px;
+            font-size:14px;
+            line-height:1.4;
+            margin-bottom:15px;
+        }
+
+        .message.show{
+            display:block;
+        }
+
+        .message.error{
+            background:#fff0ef;
+            color:#b42318;
+        }
+
+        .message.success{
+            background:#edf9f0;
+            color:#187a36;
+        }
+
+        .back{
+            display:flex;
+            align-items:center;
+            gap:5px;
+            border:0;
+            background:none;
+            color:var(--blue);
+            font-family:inherit;
+            font-size:15px;
+            padding:0;
+            margin-bottom:20px;
+            cursor:pointer;
+        }
+
+        .back span{
+            font-size:21px;
+            line-height:0;
+        }
+
+        .success-box{
+            text-align:center;
+            padding:10px 2px 4px;
+        }
+
+        .success-icon{
+            width:60px;
+            height:60px;
+            border-radius:50%;
+            background:#eaf8ee;
+            color:var(--green);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:28px;
+            margin:0 auto 18px;
+        }
+
+        .footer{
+            text-align:center;
+            color:#8e8e93;
+            font-size:12px;
+            margin-top:18px;
+        }
+
+        .loading{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            gap:8px;
+        }
+
+        .spinner{
+            width:17px;
+            height:17px;
+            border:2px solid rgba(255,255,255,.4);
+            border-top-color:#fff;
+            border-radius:50%;
+            animation:spin .7s linear infinite;
+        }
+
+        @keyframes spin{
+            to{transform:rotate(360deg)}
+        }
+
+        .info-box{
+            background:#edf5ff;
+            border-radius:12px;
+            padding:12px 14px;
+            margin-bottom:16px;
+            border-left:3px solid var(--blue);
+        }
+
+        .info-box p{
+            font-size:13px;
+            color:#075db5;
+            line-height:1.5;
+        }
+
+        @media(max-width:360px){
+            .card{
+                padding:22px 17px 18px;
+            }
+
+            .brand h1{
+                font-size:23px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- MARCA -->
+    <div class="brand">
+<div class="brand-icon">
+<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Relógio externo -->
+  <circle cx="32" cy="32" r="26" stroke="white" stroke-width="2.5" fill="none"/>
+  <circle cx="32" cy="32" r="22" stroke="white" stroke-width="1" fill="none" opacity="0.3"/>
+  <!-- Marcadores de hora -->
+  <line x1="32" y1="10" x2="32" y2="15" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <line x1="32" y1="49" x2="32" y2="54" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <line x1="54" y1="32" x2="49" y2="32" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <line x1="15" y1="32" x2="10" y2="32" stroke="white" stroke-width="2" stroke-linecap="round"/>
+  <!-- Centro — disco rotativo da injetora -->
+  <circle cx="32" cy="32" r="14" fill="white" opacity="0.15"/>
+  <circle cx="32" cy="32" r="11" stroke="white" stroke-width="2.5" fill="none"/>
+  <!-- Pontos das estações de injeção -->
+  <circle cx="32" cy="21" r="2.5" fill="white"/>
+  <circle cx="42" cy="26" r="2.5" fill="white"/>
+  <circle cx="42" cy="38" r="2.5" fill="white"/>
+  <circle cx="32" cy="43" r="2.5" fill="white"/>
+  <circle cx="22" cy="38" r="2.5" fill="white"/>
+  <circle cx="22" cy="26" r="2.5" fill="white"/>
+  <!-- Ponteiro/seta de rotação -->
+  <path d="M32 32 L32 22" stroke="white" stroke-width="2.8" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="3" fill="white"/>
+</svg>
+</div>
+
+        <h1>CONTROLE DE PRODUÇÃO</h1>
+
+        <p>Setor de Injeção</p>
+    </div>
+
+
+    <div class="card">
+
+        <!-- ================================================= -->
+        <!-- TELA DE LOGIN -->
+        <!-- ================================================= -->
+
+        <section id="loginScreen" class="screen active">
+
+            <div class="screen-title">
+                Entrar
+            </div>
+
+            <div class="screen-subtitle">
+                Acesse sua conta para continuar.
+            </div>
+
+            <div id="loginMessage" class="message"></div>
+
+            <form id="loginForm">
+
+                <div class="field">
+
+                    <label for="loginUsuario">
+                        Usuário
+                    </label>
+
+                    <input
+                        id="loginUsuario"
+                        type="text"
+                        autocomplete="username"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        placeholder="Digite seu usuário"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="field">
+
+                    <label for="loginSenha">
+                        Senha
+                    </label>
+
+                    <div class="input-wrap">
+
+                        <input
+                            id="loginSenha"
+                            class="password-input"
+                            type="password"
+                            autocomplete="current-password"
+                            placeholder="Digite sua senha"
+                            required
+                        >
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            onclick="togglePassword('loginSenha', this)"
+                            aria-label="Mostrar senha"
+                        >
+                            ◉
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    id="loginButton"
+                    class="primary"
+                    type="submit"
+                >
+                    Entrar
+                </button>
+
+            </form>
+
+
+            <div class="divider">
+                <span>ou</span>
+            </div>
+
+
+            <button
+                type="button"
+                class="secondary"
+                onclick="showScreen('newAccessScreen')"
+            >
+                Novo Acesso
+            </button>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- TELA DE SOLICITAÇÃO DE NOVO ACESSO -->
+        <!-- ================================================= -->
+
+        <section id="newAccessScreen" class="screen">
+
+            <button
+                type="button"
+                class="back"
+                onclick="goBackTo('loginScreen')"
+            >
+                <span>‹</span>
+                Voltar
+            </button>
+
+
+            <div class="screen-title">
+                Solicitar Novo Acesso
+            </div>
+
+            <div class="screen-subtitle">
+                Preencha seus dados abaixo. Enviaremos sua solicitação via WhatsApp para análise.
+            </div>
+
+            <div class="info-box">
+                <p>💡 Após enviar, entrarei em contato com você para concluir seu cadastro no sistema.</p>
+            </div>
+
+            <div id="newAccessMessage" class="message"></div>
+
+
+            <form id="newAccessForm">
+
+                <div class="field">
+                    <label for="naNome">Nome completo *</label>
+                    <input
+                        id="naNome"
+                        type="text"
+                        placeholder="Seu nome completo"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="naTelefone">WhatsApp *</label>
+                    <input
+                        id="naTelefone"
+                        type="tel"
+                        placeholder="(88) 99999-9999"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="naEmail">E-mail</label>
+                    <input
+                        id="naEmail"
+                        type="email"
+                        placeholder="seu.email@exemplo.com"
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="naFuncao">Função desejada *</label>
+                    <select id="naFuncao" required>
+                        <option value="">Selecione...</option>
+                        <option value="Líder">Líder</option>
+                        <option value="Supervisor">Supervisor</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="naObservacao">Observação</label>
+                    <textarea
+                        id="naObservacao"
+                        placeholder="Informações adicionais que achar necessárias..."
+                    ></textarea>
+                </div>
+
+
+                <button
+                    id="newAccessButton"
+                    class="primary whatsapp-btn"
+                    type="submit"
+                >
+                    💬 Enviar pelo WhatsApp
+                </button>
+
+            </form>
+
+        </section>
+
+
+        <!-- ================================================= -->
+        <!-- SOLICITAÇÃO ENVIADA COM SUCESSO -->
+        <!-- ================================================= -->
+
+        <section id="newAccessSuccessScreen" class="screen">
+
+            <div class="success-box">
+
+                <div class="success-icon">
+                    ✓
+                </div>
+
+                <h2>
+                    Solicitação Enviada!
+                </h2>
+
+                <p>
+                    Sua solicitação foi enviada com sucesso! Entrarei em contato pelo seu WhatsApp em breve para liberar seu acesso. Obrigado pela paciência.
+                </p>
+
+                <button
+                    type="button"
+                    class="primary"
+                    style="margin-top:22px;"
+                    onclick="goBackTo('loginScreen'); document.getElementById('newAccessForm').reset();"
+                >
+                    Voltar para o login
+                </button>
+
+            </div>
+
+        </section>
+
+    </div>
+
+
+    <!--div class="footer">
+        Controle de Produção • Setor de Injeção
+    </div-->
+
+</div>
+
+
+<script>
+
+    /* =======================================================
+       CONFIGURAÇÃO — TROQUE ESTE NÚMERO PELO SEU WHATSAPP
+    ======================================================= */
+
+    const SEU_WHATSAPP = "+5588999990000"; // ← Coloque SEU número aqui com DDD
+
+
+    /* =======================================================
+       GERENCIAMENTO DE TELAS + BOTÃO VOLAR DO CELULAR
+    ======================================================= */
+
+    let previousScreen = 'loginScreen'; // Tela padrão de retorno
+
+    // Abre uma nova tela e adiciona ao histórico
+    function showScreen(screenId){
+        // Salva qual é a tela atual antes de trocar
+        const telaAtual = document.querySelector('.screen.active')?.id;
+        if(telaAtual && telaAtual !== screenId){
+            previousScreen = telaAtual;
+        }
+
+        // Adiciona no histórico do navegador para detectar o botão voltar
+        history.pushState({ tela: screenId }, document.title);
+
+        // Troca a tela
+        document.querySelectorAll(".screen").forEach(screen => {
+            screen.classList.remove("active");
+        });
+
+        const screen = document.getElementById(screenId);
+        if(screen){
+            screen.classList.add("active");
+        }
+
+        clearMessages();
+    }
+
+    // Volta para uma tela específica
+    function goBackTo(targetScreen){
+        history.replaceState({ tela: targetScreen }, document.title);
+        showScreen(targetScreen);
+        // Remove a entrada extra do histórico
+        history.back();
+    }
+
+    // Intercepta o botão VOLTAR nativo do celular/navegador
+    window.addEventListener('popstate', function(event) {
+        if(event.state && event.state.tela){
+            // Se tem estado salvo, mostra a tela correspondente
+            document.querySelectorAll(".screen").forEach(screen => {
+                screen.classList.remove("active");
+            });
+            const target = document.getElementById(event.state.tela);
+            if(target){
+                target.classList.add("active");
+            }
+            clearMessages();
+        } else {
+            // Se voltou para o início, garante que a tela de login aparece
+            document.querySelectorAll(".screen").forEach(screen => {
+                screen.classList.remove("active");
+            });
+            document.getElementById('loginScreen').classList.add('active');
+            clearMessages();
+        }
+    });
+
+    function clearMessages(){
+        document.querySelectorAll(".message").forEach(message => {
+            message.className = "message";
+            message.textContent = "";
+        });
+    }
+
+
+    /* =======================================================
+       MENSAGENS
+    ======================================================= */
+
+    function showMessage(id, text, type){
+        const element = document.getElementById(id);
+        element.textContent = text;
+        element.className = "message show " + type;
+    }
+
+
+    /* =======================================================
+       MOSTRAR/OCULTAR SENHA
+    ======================================================= */
+
+    function togglePassword(inputId, button){
+        const input = document.getElementById(inputId);
+        if(input.type === "password"){
+            input.type = "text";
+            button.textContent = "◉";
+        }else{
+            input.type = "password";
+            button.textContent = "◉";
+        }
+    }
+
+
+    /* =======================================================
+       SUPABASE
+    ======================================================= */
+
+    const SUPABASE_URL = "https://icajmncojvidhrqlbevq.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_vQFsGutuZDHBruMghZkQYQ_BSwEBXFp";
+
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+
+    /* =======================================================
+       LOGIN
+    ======================================================= */
+
+    document.getElementById("loginForm").addEventListener("submit", async event => {
+        event.preventDefault();
+
+        const usuario = document.getElementById("loginUsuario").value.trim().toLowerCase();
+        const senha = document.getElementById("loginSenha").value;
+
+        if(!usuario || !senha){
+            showMessage("loginMessage", "Informe usuário e senha.", "error");
+            return;
+        }
+
+        const button = document.getElementById("loginButton");
+        setLoading(button, true, "Entrando...");
+
+        try{
+            const { data: emailData, error: emailError } =
+                await supabaseClient.rpc("obter_email_login", { p_usuario: usuario });
+
+            if(emailError || !emailData){
+                throw new Error("Usuário ou senha incorretos.");
+            }
+
+            const email = emailData;
+
+            const { data: authData, error: authError } =
+                await supabaseClient.auth.signInWithPassword({ email, password: senha });
+
+            if(authError){
+                throw new Error("Usuário ou senha incorretos.");
+            }
+
+            await redirectByProfile(authData.user.id);
+
+        }catch(error){
+            console.error(error);
+            showMessage("loginMessage", error.message || "Não foi possível entrar.", "error");
+        }finally{
+            setLoading(button, false, "Entrar");
+        }
+    });
+
+
+    /* =======================================================
+       REDIRECIONAMENTO POR PERFIL
+    ======================================================= */
+
+    async function redirectByProfile(userId){
+        const { data, error } =
+            await supabaseClient
+                .from("usuarios")
+                .select("perfil, ativo")
+                .eq("id", userId)
+                .single();
+
+        if(error || !data){
+            await supabaseClient.auth.signOut();
+            throw new Error("Perfil não encontrado.");
+        }
+
+        if(!data.ativo){
+            await supabaseClient.auth.signOut();
+            throw new Error("Seu acesso ainda não foi aprovado.");
+        }
+
+        if(data.perfil === "lider"){
+            window.location.href = "lider.html";
+            return;
+        }
+
+        if(data.perfil === "supervisor"){
+            window.location.href = "supervisor.html";
+            return;
+        }
+
+        await supabaseClient.auth.signOut();
+        throw new Error("Perfil de acesso inválido.");
+    }
+
+
+    /* =======================================================
+       SOLICITAÇÃO DE NOVO ACESSO — ENVIAR VIA WHATSAPP
+    ======================================================= */
+
+    document.getElementById("newAccessForm").addEventListener("submit", event => {
+        event.preventDefault();
+
+        const nome = document.getElementById("naNome").value.trim();
+        const telefone = document.getElementById("naTelefone").value.trim();
+        const email = document.getElementById("naEmail").value.trim() || "Não informado";
+        const funcao = document.getElementById("naFuncao").value;
+        const observacao = document.getElementById("naObservacao").value.trim() || "Nenhuma";
+
+        if(!nome || !telefone || !funcao){
+            showMessage("newAccessMessage", "Preencha todos os campos obrigatórios.", "error");
+            return;
+        }
+
+        const mensagem = `📩 *SOLICITAÇÃO DE NOVO ACESSO*
+
+━━━━━━━━━━━━━━━━━━━━━
+👤 *Nome:* ${nome}
+📱 *WhatsApp:* ${telefone}
+📧 *E-mail:* ${email}
+🔑 *Função desejada:* ${funcao}
+📝 *Observação:* ${observacao}
+━━━━━━━━━━━━━━━━━━━━━
+
+Solicitação enviada do sistema de Controle de Produção.`;
+
+        const url = `https://wa.me/${SEU_WHATSAPP.replace(/\D/g,'')}?text=${encodeURIComponent(mensagem)}`;
+        window.open(url, "_blank");
+
+        showScreen("newAccessSuccessScreen");
+    });
+
+
+    /* =======================================================
+       LOADING
+    ======================================================= */
+
+    function setLoading(button, loading, text){
+        if(loading){
+            button.disabled = true;
+            button.innerHTML = `
+                <span class="loading">
+                    <span class="spinner"></span>
+                    ${text}
+                </span>
+            `;
+        }else{
+            button.disabled = false;
+            button.textContent = text;
+        }
+    }
+
+
+    /* =======================================================
+       VERIFICA SESSÃO EXISTENTE
+    ======================================================= */
+
+    async function checkExistingSession(){
+        try{
+            const { data } = await supabaseClient.auth.getSession();
+            if(data?.session){
+                await redirectByProfile(data.session.user.id);
+            }
+        }catch(error){
+            console.log("Nenhuma sessão ativa.", error);
+        }
+    }
+
+    checkExistingSession();
+
+</script>
+
+</body>
+</html>
