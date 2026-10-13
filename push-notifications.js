@@ -1,423 +1,248 @@
 
-(function () {
-  "use strict";
+(function(){
+    "use strict";
 
-  const SUPABASE_URL =
-    "https://icajmncojvidhrqlbevq.supabase.co";
+    const VAPID_PUBLIC_KEY =
+        "BGexVSG29qkxLgjV8KBgzSUkdH9s_DoCAoOQJbn6QHE6hHT98H9AZ-LdqFSPGGHIrMT_1iJ1gQABJrBn0V8KzQQ";
 
-  const SUPABASE_KEY =
-    "sb_publishable_vQFsGutuZDHBruMghZkQYQ_BSwEBXFp";
+    let config = null;
+    let botao = null;
+    let inicializacaoEmAndamento = false;
 
-  const VAPID_PUBLIC_KEY =
-    "BGexVSG29qkxLgjV8KBgzSUkdH9s_DoCAoOQJbn6QHE6hHT98H9AZ-LdqFSPGGHIrMT_1iJ1gQABJrBn0V8KzQQ";
-
-  let pushClient = null;
-  let pushButton = null;
-  let pushBusy = false;
-
-  function avisar(mensagem) {
-    const toast = document.getElementById("toast");
-
-    if (toast) {
-      toast.textContent = mensagem;
-      toast.classList.add("show");
-
-      window.setTimeout(() => {
-        toast.classList.remove("show");
-      }, 4000);
-
-      return;
-    }
-
-    window.alert(mensagem);
-  }
-
-  function obterCliente() {
-    if (pushClient) return pushClient;
-
-    if (!window.supabase?.createClient) {
-      throw new Error("Biblioteca do Supabase não carregada.");
-    }
-
-    pushClient = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_KEY,
-      {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true
+    function avisar(mensagem){
+        if(config && typeof config.toast === "function"){
+            config.toast(mensagem);
+        }else{
+            console.info("[Push]", mensagem);
         }
-      }
-    );
-
-    return pushClient;
-  }
-
-  function decodificarChaveBase64Url(valor) {
-    const base64 = valor
-      .replace(/-/g, "+")
-      .replace(/_/g, "/");
-
-    const preenchido = base64.padEnd(
-      Math.ceil(base64.length / 4) * 4,
-      "="
-    );
-
-    const binario = window.atob(preenchido);
-    const bytes = new Uint8Array(binario.length);
-
-    for (let i = 0; i < binario.length; i++) {
-      bytes[i] = binario.charCodeAt(i);
     }
 
-    return bytes;
-  }
+    function base64UrlParaUint8Array(valor){
+        const padding = "=".repeat((4 - valor.length % 4) % 4);
+        const base64 = (valor + padding)
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
 
-  function codificarBase64Url(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let binario = "";
+        const binario = atob(base64);
+        const resultado = new Uint8Array(binario.length);
 
-    for (const byte of bytes) {
-      binario += String.fromCharCode(byte);
+        for(let i = 0; i < binario.length; i++){
+            resultado[i] = binario.charCodeAt(i);
+        }
+
+        return resultado;
     }
 
-    return window.btoa(binario)
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/g, "");
-  }
+    function criarBotao(){
+        const dropdown = document.getElementById("userMenuDropdown");
 
-  function chavesIguais(a, b) {
-    if (!a || !b) return false;
+        if(!dropdown) return false;
 
-    const chaveA = new Uint8Array(a);
-    const chaveB = new Uint8Array(b);
+        if(document.getElementById("ativarPushButton")){
+            botao = document.getElementById("ativarPushButton");
+            return true;
+        }
 
-    if (chaveA.length !== chaveB.length) return false;
+        const botaoSair = dropdown.querySelector(
+            'button[onclick="sair()"]'
+        );
 
-    return chaveA.every((byte, indice) => byte === chaveB[indice]);
-  }
+        if(!botaoSair) return false;
 
-  async function obterUsuarioAutenticado() {
-    const client = obterCliente();
+        botao = document.createElement("button");
+        botao.id = "ativarPushButton";
+        botao.type = "button";
+        botao.className = botaoSair.className;
+        botao.textContent = "Ativar notificações";
+        botao.setAttribute(
+            "aria-label",
+            "Ativar notificações Push neste dispositivo"
+        );
 
-    const { data, error } = await client.auth.getSession();
+        botao.addEventListener("click", ativarNotificacoesPush);
 
-    if (error) throw error;
+        dropdown.insertBefore(botao, botaoSair);
 
-    const usuario = data?.session?.user;
-
-    if (!usuario?.id) {
-      throw new Error(
-        "Sua sessão não foi encontrada. Entre novamente no aplicativo."
-      );
+        return true;
     }
 
-    return usuario;
-  }
+    async function salvarInscricao(inscricao){
+        if(!config || !config.client || !config.user){
+            throw new Error("Sessão autenticada indisponível.");
+        }
 
-  async function obterInscricaoAtual(registration) {
-    let subscription =
-      await registration.pushManager.getSubscription();
+        const endpoint = inscricao.endpoint;
+        const chavePublica = inscricao.getKey("p256dh");
+        const chaveAutenticacao = inscricao.getKey("auth");
 
-    if (!subscription) return null;
+        if(!endpoint || !chavePublica || !chaveAutenticacao){
+            throw new Error("A inscrição Push está incompleta.");
+        }
 
-    const chaveAtual =
-      subscription.options?.applicationServerKey;
+        const dados = {
+            user_id: config.user.id,
+            endpoint: endpoint,
+            p256dh: btoa(
+                String.fromCharCode(...new Uint8Array(chavePublica))
+            ),
+            auth_key: btoa(
+                String.fromCharCode(...new Uint8Array(chaveAutenticacao))
+            ),
+            user_agent: navigator.userAgent,
+            updated_at: new Date().toISOString()
+        };
 
-    const chaveEsperada =
-      decodificarChaveBase64Url(VAPID_PUBLIC_KEY);
+        const { error } = await config.client
+            .from("push_subscriptions")
+            .upsert(dados, { onConflict: "endpoint" });
 
-    if (
-      chaveAtual &&
-      !chavesIguais(chaveAtual, chaveEsperada.buffer)
-    ) {
-      await subscription.unsubscribe();
-      subscription = null;
+        if(error) throw error;
     }
 
-    return subscription;
-  }
+    async function atualizarEstadoBotao(){
+        if(!botao) return;
 
-  async function salvarInscricao(usuario, subscription) {
-    const client = obterCliente();
+        if(!("serviceWorker" in navigator) ||
+           !("PushManager" in window) ||
+           !("Notification" in window)){
+            botao.disabled = true;
+            botao.textContent = "Push não disponível";
+            return;
+        }
 
-    const p256dh = subscription.getKey("p256dh");
-    const auth = subscription.getKey("auth");
+        if(Notification.permission === "denied"){
+            botao.disabled = true;
+            botao.textContent = "Notificações bloqueadas";
+            return;
+        }
 
-    if (!p256dh || !auth) {
-      throw new Error(
-        "O navegador não forneceu as chaves da inscrição."
-      );
+        try{
+            const registro = await navigator.serviceWorker.ready;
+            const inscricao = await registro.pushManager.getSubscription();
+
+            if(inscricao && Notification.permission === "granted"){
+                botao.textContent = "Notificações ativadas";
+            }else{
+                botao.textContent = "Ativar notificações";
+            }
+        }catch(error){
+            console.error("Erro ao verificar Push:", error);
+            botao.textContent = "Ativar notificações";
+        }
     }
 
-    const registro = {
-      user_id: usuario.id,
-      endpoint: subscription.endpoint,
-      p256dh: codificarBase64Url(p256dh),
-      auth_key: codificarBase64Url(auth),
-      user_agent: navigator.userAgent,
-      updated_at: new Date().toISOString()
+    async function ativarNotificacoesPush(){
+        if(!config || !config.client || !config.user){
+            avisar("Aguarde a autenticação do sistema.");
+            return;
+        }
+
+        if(!botao || botao.disabled) return;
+
+        botao.disabled = true;
+        botao.textContent = "Ativando...";
+
+        try{
+            if(!("serviceWorker" in navigator) ||
+               !("PushManager" in window) ||
+               !("Notification" in window)){
+                throw new Error(
+                    "Este navegador não oferece suporte às notificações Push."
+                );
+            }
+
+            if(!window.isSecureContext){
+                throw new Error(
+                    "As notificações exigem uma conexão segura HTTPS."
+                );
+            }
+
+            const permissao = await Notification.requestPermission();
+
+            if(permissao !== "granted"){
+                throw new Error(
+                    permissao === "denied"
+                        ? "Permissão bloqueada. Verifique as configurações do navegador."
+                        : "Permissão para notificações não concedida."
+                );
+            }
+
+            const registro = await navigator.serviceWorker.register(
+                "./service-worker.js"
+            );
+
+            await navigator.serviceWorker.ready;
+
+            let inscricao = await registro.pushManager.getSubscription();
+
+            if(inscricao){
+                const chaveAtual = inscricao.options.applicationServerKey;
+                const chaveEsperada = base64UrlParaUint8Array(
+                    VAPID_PUBLIC_KEY
+                );
+
+                const chaveIgual =
+                    chaveAtual &&
+                    chaveAtual.byteLength === chaveEsperada.byteLength &&
+                    chaveEsperada.every(
+                        (byte, indice) => byte === new Uint8Array(chaveAtual)[indice]
+                    );
+
+                if(!chaveIgual){
+                    await inscricao.unsubscribe();
+                    inscricao = null;
+                }
+            }
+
+            if(!inscricao){
+                inscricao = await registro.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey:
+                        base64UrlParaUint8Array(VAPID_PUBLIC_KEY)
+                });
+            }
+
+            await salvarInscricao(inscricao);
+
+            botao.textContent = "Notificações ativadas";
+            avisar("Notificações Push ativadas neste dispositivo.");
+        }catch(error){
+            console.error("Erro ao ativar notificações Push:", error);
+
+            avisar(
+                error && error.message
+                    ? error.message
+                    : "Não foi possível ativar as notificações."
+            );
+        }finally{
+            if(botao){
+                botao.disabled = false;
+                await atualizarEstadoBotao();
+            }
+        }
+    }
+
+    window.inicializarPushNotificacoes = function(novaConfig){
+        if(!novaConfig || !novaConfig.client || !novaConfig.user){
+            return;
+        }
+
+        config = novaConfig;
+
+        if(!criarBotao()){
+            console.warn(
+                "Menu do usuário indisponível para o botão Push."
+            );
+            return;
+        }
+
+        atualizarEstadoBotao();
     };
 
-    // Atualiza a inscrição se ela já pertence ao usuário.
-    const { data: existente, error: erroBusca } = await client
-      .from("push_subscriptions")
-      .select("id")
-      .eq("user_id", usuario.id)
-      .eq("endpoint", subscription.endpoint)
-      .maybeSingle();
-
-    if (erroBusca) throw erroBusca;
-
-    if (existente?.id) {
-      const { error } = await client
-        .from("push_subscriptions")
-        .update({
-          p256dh: registro.p256dh,
-          auth_key: registro.auth_key,
-          user_agent: registro.user_agent,
-          updated_at: registro.updated_at
-        })
-        .eq("id", existente.id);
-
-      if (error) throw error;
-
-      return;
-    }
-
-    // Não transfere automaticamente uma inscrição de outra conta.
-    const { error: erroInsert } = await client
-      .from("push_subscriptions")
-      .insert(registro);
-
-    if (erroInsert) {
-      if (erroInsert.code === "23505") {
-        throw new Error(
-          "Este navegador já está vinculado a outra conta. " +
-          "Saia dessa conta no aplicativo antes de registrar outra."
+    /* Funciona mesmo se a autenticação terminar antes deste arquivo carregar. */
+    if(window.__controlePushConfig){
+        window.inicializarPushNotificacoes(
+            window.__controlePushConfig
         );
-      }
-
-      throw erroInsert;
     }
-  }
-
-  function atualizarTextoBotao(texto, desabilitado) {
-    if (!pushButton) return;
-
-    const span = pushButton.querySelector("span");
-
-    if (span) span.textContent = texto;
-
-    pushButton.disabled = Boolean(desabilitado);
-  }
-
-  async function atualizarEstadoBotao() {
-    if (!pushButton) return;
-
-    if (!("Notification" in window) ||
-        !("serviceWorker" in navigator) ||
-        !("PushManager" in window)) {
-      atualizarTextoBotao(
-        "Notificações indisponíveis neste navegador",
-        true
-      );
-      return;
-    }
-
-    if (Notification.permission === "denied") {
-      atualizarTextoBotao(
-        "Notificações bloqueadas no navegador",
-        true
-      );
-      return;
-    }
-
-    try {
-      const registration =
-        await navigator.serviceWorker.getRegistration("./");
-
-      const subscription = registration
-        ? await registration.pushManager.getSubscription()
-        : null;
-
-      if (
-        subscription &&
-        Notification.permission === "granted"
-      ) {
-        const usuario = await obterUsuarioAutenticado();
-        const client = obterCliente();
-
-        const { data, error } = await client
-          .from("push_subscriptions")
-          .select("id")
-          .eq("user_id", usuario.id)
-          .eq("endpoint", subscription.endpoint)
-          .maybeSingle();
-
-        if (!error && data?.id) {
-          atualizarTextoBotao(
-            "Notificações ativadas neste dispositivo",
-            false
-          );
-          return;
-        }
-      }
-    } catch (error) {
-      console.warn(
-        "Não foi possível consultar o estado do Push.",
-        error
-      );
-    }
-
-    atualizarTextoBotao("Ativar notificações", false);
-  }
-
-  async function ativarNotificacoesPush() {
-    if (pushBusy) return;
-
-    pushBusy = true;
-    atualizarTextoBotao("Ativando notificações...", true);
-
-    try {
-      if (
-        !("Notification" in window) ||
-        !("serviceWorker" in navigator) ||
-        !("PushManager" in window)
-      ) {
-        throw new Error(
-          "Este navegador não oferece suporte a notificações Push. " +
-          "Em iPhones, use um aplicativo instalado na tela inicial " +
-          "e uma versão compatível do iOS."
-        );
-      }
-
-      if (!window.isSecureContext) {
-        throw new Error(
-          "As notificações exigem uma conexão HTTPS segura."
-        );
-      }
-
-      const usuario = await obterUsuarioAutenticado();
-
-      // O pedido de permissão acontece em resposta ao clique do usuário.
-      let permissao = Notification.permission;
-
-      if (permissao === "default") {
-        permissao = await Notification.requestPermission();
-      }
-
-      if (permissao !== "granted") {
-        throw new Error(
-          "Permissão não concedida. Verifique as configurações " +
-          "de notificações do navegador."
-        );
-      }
-
-      const registration =
-        await navigator.serviceWorker.register(
-          "./service-worker.js"
-        );
-
-      await navigator.serviceWorker.ready;
-
-      let subscription =
-        await obterInscricaoAtual(registration);
-
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey:
-            decodificarChaveBase64Url(VAPID_PUBLIC_KEY)
-        });
-      }
-
-      await salvarInscricao(usuario, subscription);
-
-      atualizarTextoBotao(
-        "Notificações ativadas neste dispositivo",
-        false
-      );
-
-      avisar(
-        "Notificações ativadas neste dispositivo."
-      );
-    } catch (error) {
-      console.error("Erro ao ativar Web Push:", error);
-
-      const mensagem =
-        error?.message ||
-        "Não foi possível ativar as notificações.";
-
-      avisar(mensagem);
-
-      atualizarTextoBotao("Tentar ativar novamente", false);
-    } finally {
-      pushBusy = false;
-
-      if (pushButton) {
-        pushButton.disabled = false;
-      }
-    }
-  }
-
-  function criarBotaoNotificacoes() {
-    const dropdown =
-      document.getElementById("userMenuDropdown");
-
-    if (!dropdown || dropdown.dataset.pushButtonCreated === "true") {
-      return;
-    }
-
-    const botaoSair = dropdown.querySelector(
-      'button[onclick="sair()"]'
-    );
-
-    if (!botaoSair) return;
-
-    pushButton = document.createElement("button");
-    pushButton.type = "button";
-    pushButton.className = "user-menu-item";
-    pushButton.setAttribute(
-      "aria-label",
-      "Ativar notificações neste dispositivo"
-    );
-
-    pushButton.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24"
-           fill="none" stroke="currentColor" stroke-width="2"
-           stroke-linecap="round" stroke-linejoin="round"
-           aria-hidden="true">
-        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path>
-        <path d="M10 21h4"></path>
-      </svg>
-      <span>Ativar notificações</span>
-    `;
-
-    pushButton.addEventListener(
-      "click",
-      ativarNotificacoesPush
-    );
-
-    dropdown.insertBefore(botaoSair.parentNode === dropdown
-      ? pushButton
-      : pushButton, botaoSair);
-
-    dropdown.dataset.pushButtonCreated = "true";
-
-    atualizarEstadoBotao();
-  }
-
-  window.ativarNotificacoesPush = ativarNotificacoesPush;
-
-  if (document.readyState === "loading") {
-    document.addEventListener(
-      "DOMContentLoaded",
-      criarBotaoNotificacoes
-    );
-  } else {
-    criarBotaoNotificacoes();
-  }
 })();
