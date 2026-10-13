@@ -1,337 +1,288 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 
-<head><link rel="manifest" href="./manifest.json">
-
-<meta name="theme-color" content="#176B45">
-
-<link
-    rel="apple-touch-icon"
-    href="./icons/apple-touch-icon.png"
->
-
+<head>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#F2F2F7">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    >
-
-    <meta
-        name="theme-color"
-        content="#F2F2F7"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Controle de Produção</title>
-
-    <link
-        rel="stylesheet"
-        href="supervisor.css"
-    >
-
-    <script
-        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
-    ></script>
-
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 
 <body>
 
-
-<header class="app-header">
-
+<header class="app-header" id="mainHeader">
     <div class="header-inner">
 
-        <div>
-
-            <div class="app-title">
-                CONTROLE DE PRODUÇÃO
+        <div class="header-brand">
+            <div class="app-icon">
+                <svg viewBox="0 0 64 64" width="30" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="2.5" fill="none"/>
+                  <circle cx="32" cy="32" r="22" stroke="currentColor" stroke-width="1" fill="none" opacity="0.3"/>
+                  <line x1="32" y1="10" x2="32" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="32" y1="49" x2="32" y2="54" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="54" y1="32" x2="49" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="15" y1="32" x2="10" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="32" cy="32" r="14" fill="currentColor" opacity="0.15"/>
+                  <circle cx="32" cy="32" r="11" stroke="currentColor" stroke-width="2.5" fill="none"/>
+                  <circle cx="32" cy="21" r="2.5" fill="currentColor"/>
+                  <circle cx="42" cy="26" r="2.5" fill="currentColor"/>
+                  <circle cx="42" cy="38" r="2.5" fill="currentColor"/>
+                  <circle cx="32" cy="43" r="2.5" fill="currentColor"/>
+                  <circle cx="22" cy="38" r="2.5" fill="currentColor"/>
+                  <circle cx="22" cy="26" r="2.5" fill="currentColor"/>
+                  <path d="M32 32 L32 22" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                  <circle cx="32" cy="32" r="3" fill="currentColor"/>
+                </svg>
             </div>
 
-            <div class="app-subtitle">
-                Setor de Injeção
+            <div class="header-titles">
+                <div class="app-title-row">
+                    <span class="app-title">Controle de Produção</span>
+                </div>
+                <div class="app-subtitle-row">
+                    <span class="status-dot online"></span>
+                    <span class="app-subtitle">Setor de Injeção</span>
+                    <span class="subtitle-dot">•</span>
+                    <span class="app-subtitle" id="headerShiftLabel">1º turno</span>
+                </div>
             </div>
-
         </div>
-
 
         <div class="header-actions">
-
-            <div
-                class="user-avatar"
-                id="userAvatar"
-            >
-                --
-            </div>
-
             <button
-                class="logout-button"
-                onclick="sair()"
-                aria-label="Sair"
+                class="user-menu-button"
+                id="userMenuButton"
+                type="button"
+                onclick="toggleUserMenu()"
+                aria-label="Menu do usuário"
+                aria-expanded="false"
             >
-                Sair
+                <div class="user-avatar" id="userAvatar">
+                    <svg class="user-icon-default" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+                <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
             </button>
-
         </div>
-
     </div>
 
-</header>
+    <div class="user-menu-dropdown hidden" id="userMenuDropdown">
+        <div class="user-menu-header">
+            <div class="user-menu-avatar" id="userMenuAvatar">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+            <div class="user-menu-info">
+                <div class="user-menu-name" id="userMenuName">Carregando...</div>
+                <div class="user-menu-email">Supervisor</div>
+            </div>
+        </div>
 
+        <div class="user-menu-divider"></div>
+
+        <button class="user-menu-item danger" type="button" onclick="sair()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Sair</span>
+        </button>
+    </div>
+</header>
 
 <main>
 
-
-    <!-- =====================================================
-         CONTEXTO
-    ====================================================== -->
-
     <section>
-
-        <div class="supervisor-label">
-            SUPERVISOR
-        </div>
-
-
-        <div
-            class="supervisor-name"
-            id="supervisorName"
-        >
-            Carregando...
-        </div>
-
+        <div class="supervisor-label">SUPERVISOR</div>
+        <div class="supervisor-name" id="supervisorName">Carregando...</div>
 
         <div class="context-grid">
-
-
             <div class="field-card context-date">
-
                 <div class="field-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
                     Data
                 </div>
-
-                <input
-                    type="date"
-                    id="data"
-                >
-
+                <input type="date" id="data">
             </div>
 
-
             <div class="field-card">
-
-                <div class="field-label">
-                    Turno
-                </div>
-
+                <div class="field-label">Turno</div>
                 <select id="turno">
-
-                    <option value="1º turno">
-                        1º turno
-                    </option>
-
-                    <option value="2º turno">
-                        2º turno
-                    </option>
-
-                    <option value="3º turno">
-                        3º turno
-                    </option>
-
+                    <option value="1º turno">1º turno</option>
+                    <option value="2º turno">2º turno</option>
+                    <option value="3º turno">3º turno</option>
                 </select>
-
             </div>
-
 
             <div class="field-card">
-
-                <div class="field-label">
-                    Setor
-                </div>
-
+                <div class="field-label">Setor</div>
                 <select id="setor">
-
-                    <option value="A">
-                        A
-                    </option>
-
-                    <option value="B">
-                        B
-                    </option>
-
-                    <option value="C">
-                        C
-                    </option>
-
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
                 </select>
-
             </div>
-
         </div>
-
     </section>
 
-
-    <!-- =====================================================
-         ABAS
-    ====================================================== -->
-
     <div class="tabs">
-
-        <button
-            id="tabHoras"
-            class="tab active"
-            onclick="mostrarAba('horas')"
-        >
+        <button id="tabHoras" class="tab active" type="button" onclick="mostrarAba('horas')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
             Horas baixadas
         </button>
-
-
-        <button
-            id="tabDrive"
-            class="tab"
-            onclick="mostrarAba('drive')"
-        >
+        <button id="tabDrive" class="tab" type="button" onclick="mostrarAba('drive')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
             Drive
         </button>
-
     </div>
 
-
-    <!-- =====================================================
-         HORAS
-    ====================================================== -->
-
-    <section
-        id="abaHoras"
-        class="section"
-    >
-
+    <section id="abaHoras" class="section">
         <div class="section-title">
-
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
             Horas baixadas setor
-
-            <span id="tituloSetor">
-                A
-            </span>
-
+            <span id="tituloSetor">A</span>
         </div>
-
 
         <div id="listaHoras"></div>
 
-
-        <!-- REVISÃO -->
-
-        <div
-            class="review-card"
-            id="reviewCard"
-        >
-
+        <div class="review-card" id="reviewCard">
             <div class="review-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--green);">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
                 Fechamento do turno
             </div>
-
             <div class="review-subtitle">
                 Revise os apontamentos antes de liberar o fechamento.
             </div>
-
-            <button
-                class="review-button"
-                id="reviewButton"
-                onclick="marcarRevisado()"
-            >
-                Revisado ✓
+            <button class="review-button" id="reviewButton" type="button" onclick="marcarRevisado()">
+                Revisado
             </button>
-
         </div>
 
-
-        <!-- FECHAMENTO -->
-
-        <div
-            class="closing-card hidden"
-            id="closingCard"
-        >
-
+        <div class="closing-card hidden" id="closingCard">
             <div class="closing-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--blue);">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
                 Fechamento do setor
             </div>
-
             <div class="closing-subtitle">
                 Texto pronto para compartilhar.
             </div>
-
-
-            <textarea
-                id="textoFechamento"
-                class="closing-text"
-                readonly
-            ></textarea>
-
-
-            <button
-                class="send-button"
-                onclick="enviarWhatsApp()"
-            >
+            <textarea id="textoFechamento" class="closing-text" readonly></textarea>
+            <button class="send-button" type="button" onclick="enviarWhatsApp()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
                 Enviar
             </button>
-
-
-            <button
-                class="copy-closing"
-                onclick="copiarFechamento()"
-            >
+            <button class="copy-closing" type="button" onclick="copiarFechamento()">
                 Copiar fechamento
             </button>
-
         </div>
-
     </section>
 
-
-    <!-- =====================================================
-         DRIVE
-    ====================================================== -->
-
-    <section
-        id="abaDrive"
-        class="section hidden"
-    >
-
+    <section id="abaDrive" class="section hidden">
         <div class="section-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
             Problemas do setor
         </div>
-
         <div id="listaDrive"></div>
-
     </section>
-
 
 </main>
 
+<div class="toast" id="toast"></div>
 
-<div
-    class="toast"
-    id="toast"
-></div>
-
-
-<div
-    class="loading hidden"
-    id="loading"
->
-
+<div class="loading hidden" id="loading">
     <div class="loading-box">
+        <svg class="spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+        </svg>
         Carregando...
     </div>
-
 </div>
 
+<script>
+function toggleUserMenu(){
+    const dropdown = document.getElementById("userMenuDropdown");
+    const button = document.getElementById("userMenuButton");
+    if(dropdown.classList.contains("hidden")){
+        dropdown.classList.remove("hidden");
+        button.classList.add("open");
+        button.setAttribute("aria-expanded", "true");
+    }else{
+        fecharUserMenu();
+    }
+}
 
-<script src="supervisor.js"></script>
+function fecharUserMenu(){
+    const dropdown = document.getElementById("userMenuDropdown");
+    const button = document.getElementById("userMenuButton");
+    dropdown.classList.add("hidden");
+    button.classList.remove("open");
+    button.setAttribute("aria-expanded", "false");
+}
+
+document.addEventListener("click", event => {
+    const button = document.getElementById("userMenuButton");
+    const dropdown = document.getElementById("userMenuDropdown");
+    if(!button || !dropdown) return;
+    const inside = button.contains(event.target) || dropdown.contains(event.target);
+    if(!inside && !dropdown.classList.contains("hidden")) fecharUserMenu();
+});
+
+document.addEventListener("keydown", event => {
+    const dropdown = document.getElementById("userMenuDropdown");
+    if(event.key === "Escape" && dropdown && !dropdown.classList.contains("hidden")) fecharUserMenu();
+});
+</script>
+
+<script src="scripts.js"></script>
+
+<script>
+if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+        navigator.serviceWorker.register("./service-worker.js").catch(function(){});
+    });
+}
+</script>
 
 </body>
-
 </html>

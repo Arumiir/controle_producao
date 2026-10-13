@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#F2F2F7">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Controle de Produção</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+<header class="app-header" id="mainHeader">
+    <div class="header-inner">
+
+        <!-- Lado esquerdo: ícone do app + título -->
+        <div class="header-brand">
+            <div class="app-icon">
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Relógio externo -->
+                  <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="2.5" fill="none"/>
+                  <circle cx="32" cy="32" r="22" stroke="currentColor" stroke-width="1" fill="none" opacity="0.3"/>
+                  <!-- Marcadores de hora -->
+                  <line x1="32" y1="10" x2="32" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="32" y1="49" x2="32" y2="54" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="54" y1="32" x2="49" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <line x1="15" y1="32" x2="10" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  <!-- Centro — disco rotativo da injetora -->
+                  <circle cx="32" cy="32" r="14" fill="currentColor" opacity="0.15"/>
+                  <circle cx="32" cy="32" r="11" stroke="currentColor" stroke-width="2.5" fill="none"/>
+                  <!-- Pontos das estações de injeção -->
+                  <circle cx="32" cy="21" r="2.5" fill="currentColor"/>
+                  <circle cx="42" cy="26" r="2.5" fill="currentColor"/>
+                  <circle cx="42" cy="38" r="2.5" fill="currentColor"/>
+                  <circle cx="32" cy="43" r="2.5" fill="currentColor"/>
+                  <circle cx="22" cy="38" r="2.5" fill="currentColor"/>
+                  <circle cx="22" cy="26" r="2.5" fill="currentColor"/>
+                  <!-- Ponteiro/seta de rotação -->
+                  <path d="M32 32 L32 22" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+                  <circle cx="32" cy="32" r="3" fill="currentColor"/>
+                </svg>
+            </div>
+
+            <div class="header-titles">
+                <div class="app-title-row">
+                    <span class="app-title">Controle de Produção</span>
+                </div>
+                <div class="app-subtitle-row">
+                    <span class="status-dot online"></span>
+                    <span class="app-subtitle">Setor de Injeção</span>
+                    <span class="subtitle-dot">•</span>
+                    <span class="app-subtitle" id="headerShiftLabel">1º turno</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lado direito: botão do usuário -->
+        <div class="header-actions">
+            <button
+                class="user-menu-button"
+                id="userMenuButton"
+                onclick="toggleUserMenu()"
+                aria-label="Menu do usuário"
+                aria-expanded="false"
+            >
+                <div class="user-avatar" id="userAvatar">
+                    <svg class="user-icon-default" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                </div>
+                <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Dropdown do menu do usuário -->
+    <div class="user-menu-dropdown hidden" id="userMenuDropdown">
+        <div class="user-menu-header">
+            <div class="user-menu-avatar" id="userMenuAvatar">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+            <div class="user-menu-info">
+                <div class="user-menu-name" id="userMenuName">Carregando...</div>
+                <div class="user-menu-email" id="userMenuEmail">—</div>
+            </div>
+        </div>
+
+        <div class="user-menu-divider"></div>
+
+        <button class="user-menu-item" onclick="recuperarSenha()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Recuperar senha</span>
+        </button>
+
+        <button class="user-menu-item danger" onclick="sair()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Sair</span>
+        </button>
+    </div>
+</header>
+
+<main>
+    <section id="contextSection">
+        <div class="leader-label">LÍDER</div>
+        <div class="leader-name" id="leaderName">Carregando...</div>
+
+        <div class="context-grid">
+            <div class="field-card context-date">
+                <div class="field-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    Data
+                </div>
+                <input type="date" id="date">
+            </div>
+
+            <div class="field-card">
+                <div class="field-label">Turno</div>
+                <select id="shift">
+                    <option value="1º turno">1º turno</option>
+                    <option value="2º turno">2º turno</option>
+                    <option value="3º turno">3º turno</option>
+                </select>
+            </div>
+
+            <div class="field-card">
+                <div class="field-label">Setor</div>
+                <select id="sector">
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                </select>
+            </div>
+        </div>
+
+        <section class="section" id="machineListSection">
+            <div class="section-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px;">
+                    <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+                    <path d="M8 2v4"></path>
+                    <path d="M16 2v4"></path>
+                    <path d="M6 10h12"></path>
+                </svg>
+                Máquinas
+            </div>
+            <div class="machine-grid" id="machineGrid"></div>
+        </section>
+    </section>
+
+    <section id="machineScreen" class="hidden">
+        <div class="machine-top">
+            <button class="back-button" onclick="fecharTelaMaquina()" aria-label="Voltar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            <div>
+                <div class="machine-title" id="machineTitle">M01</div>
+                <div class="machine-subtitle" id="machineSubtitle">Apontamento da máquina</div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px; color:var(--blue);">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                Produção
+            </div>
+
+            <div class="hours-grid">
+                <div class="input-group">
+                    <label for="goodHours">Hora boa</label>
+                    <div class="time-input-wrapper">
+                        <input type="text" id="goodHours" inputmode="text" placeholder="00:00" maxlength="5" autocomplete="off">
+                        <button type="button" class="time-picker-button" data-time-target="goodHours" aria-label="Selecionar hora boa">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 15 14"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="replacementHours">Reposição</label>
+                    <div class="time-input-wrapper">
+                        <input type="text" id="replacementHours" inputmode="text" placeholder="00:00" maxlength="5" autocomplete="off">
+                        <button type="button" class="time-picker-button" data-time-target="replacementHours" aria-label="Selecionar reposição">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 15 14"></polyline>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="total-box">
+                <div class="total-label">Total baixado</div>
+                <div class="total-value" id="totalHours">00:00</div>
+            </div>
+
+            <div class="performance">
+                <div class="performance-bar" id="performanceBar"></div>
+            </div>
+
+            <div class="saldo-row">
+                <label for="balance">Saldo</label>
+                <div class="time-input-wrapper saldo-time">
+                    <input type="text" id="balance" inputmode="text" placeholder="00:00" maxlength="5" autocomplete="off">
+                    <button type="button" class="time-picker-button" data-time-target="balance" aria-label="Selecionar saldo">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 15 14"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card">
+            <div class="form-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px; color:var(--yellow);">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                Ocorrências
+            </div>
+            <div class="occurrence-list" id="occurrenceList"></div>
+            <button class="add-occurrence" onclick="abrirEditorOcorrencia()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px;">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Adicionar ocorrência
+            </button>
+
+            <div class="occurrence-editor hidden" id="occurrenceEditor">
+                <select id="occurrenceType">
+                    <option value="Mecânico">Mecânico</option>
+                    <option value="Elétrico">Elétrico</option>
+                    <option value="Eletromecânico">Eletromecânico</option>
+                    <option value="Matriz">Matriz</option>
+                    <option value="Processo / Regulagem">Processo / Regulagem</option>
+                    <option value="Material">Material</option>
+                    <option value="CTP">CTP</option>
+                    <option value="Setup / Troca">Setup / Troca</option>
+                    <option value="Outro">Outro</option>
+                </select>
+                <textarea id="occurrenceDescription" placeholder="Descreva a ocorrência..."></textarea>
+                <div class="editor-actions">
+                    <button class="editor-cancel" onclick="cancelarEditorOcorrencia()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        Cancelar
+                    </button>
+                    <button class="editor-save" onclick="salvarOcorrenciaLocal()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:4px;">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                        Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <input type="time" id="nativeTimePicker" class="native-time-picker" step="60" aria-hidden="true">
+
+        <button class="save-button" onclick="salvarMaquina()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:8px;">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v12a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Salvar máquina
+        </button>
+
+        <button class="delete-machine hidden" id="deleteMachineButton" onclick="excluirMaquina()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle; margin-right:6px;">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Excluir apontamento
+        </button>
+    </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="loading hidden" id="loading">
+    <div class="loading-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite; margin-right:10px; vertical-align:middle;">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+        </svg>
+        Carregando...
+    </div>
+</div>
+
+<style>
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .custom-confirm-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        background: rgba(20, 25, 35, 0.42);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        animation: fadeIn 0.15s ease-out;
+    }
+
+    .custom-confirm-overlay.hidden {
+        display: none !important;
+    }
+
+    .custom-confirm-box {
+        width: 100%;
+        max-width: 360px;
+        padding: 24px;
+        border-radius: 20px;
+        background: #FFFFFF;
+        color: #1C1C1E;
+        box-shadow: 0 18px 55px rgba(0, 0, 0, 0.20);
+        animation: confirmAppear 0.18s ease-out;
+    }
+
+    .custom-confirm-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        border-radius: 15px;
+        background: #F2F2F7;
+        color: #3A3A3C;
+    }
+
+    .custom-confirm-icon.danger {
+        background: #FFF0F0;
+        color: #D92D20;
+    }
+
+    .custom-confirm-title {
+        margin: 0 0 8px;
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 1.3;
+    }
+
+    .custom-confirm-message {
+        margin: 0;
+        color: #636366;
+        font-size: 15px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    .custom-confirm-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 24px;
+    }
+
+    .custom-confirm-actions button {
+        flex: 1;
+        min-height: 46px;
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font: inherit;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        transition: transform 0.1s ease, opacity 0.1s ease;
+    }
+
+    .custom-confirm-actions button:active {
+        transform: scale(0.97);
+        opacity: 0.9;
+    }
+
+    .custom-confirm-cancel {
+        background: #F2F2F7;
+        color: #1C1C1E;
+    }
+
+    .custom-confirm-accept {
+        background: #007AFF;
+        color: #FFFFFF;
+    }
+
+    .custom-confirm-accept.danger {
+        background: #FF3B30;
+    }
+
+    .custom-confirm-actions button:focus-visible {
+        outline: 3px solid rgba(0, 122, 255, 0.3);
+        outline-offset: 2px;
+    }
+
+    @keyframes confirmAppear {
+        from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.98);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .custom-confirm-box, .custom-confirm-overlay {
+            animation: none;
+        }
+    }
+</style>
+
+<div id="customConfirm" class="custom-confirm-overlay hidden" aria-hidden="true">
+    <section class="custom-confirm-box" role="dialog" aria-modal="true" aria-labelledby="customConfirmTitle" aria-describedby="customConfirmMessage">
+        <div id="customConfirmIcon" class="custom-confirm-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        </div>
+        <h2 id="customConfirmTitle" class="custom-confirm-title">Confirmar ação</h2>
+        <p id="customConfirmMessage" class="custom-confirm-message">Deseja continuar?</p>
+        <div class="custom-confirm-actions">
+            <button type="button" id="customConfirmCancel" class="custom-confirm-cancel">Cancelar</button>
+            <button type="button" id="customConfirmAccept" class="custom-confirm-accept">Confirmar</button>
+        </div>
+    </section>
+</div>
+
+<script>
+/* =======================================================
+   GERENCIAMENTO DE TELAS + BOTÃO VOLTAR DO CELULAR
+======================================================= */
+
+// Abre a tela da máquina e registra no histórico
+function abrirTelaMaquina() {
+    history.pushState({ tela: 'machineScreen' }, document.title);
+    document.getElementById('contextSection').classList.add('hidden');
+    document.getElementById('machineScreen').classList.remove('hidden');
+}
+
+// Fecha a tela da máquina — chamado pelo botão "Voltar"
+function fecharTelaMaquina() {
+    // Verifica se veio do histórico do navegador para não duplicar
+    if (!history.state || history.state.tela !== 'contextSection') {
+        history.replaceState({ tela: 'contextSection' }, document.title);
+    }
+    document.getElementById('machineScreen').classList.add('hidden');
+    document.getElementById('contextSection').classList.remove('hidden');
+}
+
+// Intercepta o botão VOLTAR nativo do celular/navegador
+window.addEventListener('popstate', function(event) {
+    if (event.state && event.state.tela === 'contextSection') {
+        // Usuário apertou voltar — volta para a lista de máquinas
+        document.getElementById('machineScreen').classList.add('hidden');
+        document.getElementById('contextSection').classList.remove('hidden');
+    }
+});
+</script>
+
+<script src="lider.js"></script>
+</body>
+</html>

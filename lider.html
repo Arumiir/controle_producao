@@ -17,29 +17,23 @@
 <header class="app-header" id="mainHeader">
     <div class="header-inner">
 
-        <!-- Lado esquerdo: ícone do app + título -->
         <div class="header-brand">
             <div class="app-icon">
                 <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <!-- Relógio externo -->
                   <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="2.5" fill="none"/>
                   <circle cx="32" cy="32" r="22" stroke="currentColor" stroke-width="1" fill="none" opacity="0.3"/>
-                  <!-- Marcadores de hora -->
                   <line x1="32" y1="10" x2="32" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   <line x1="32" y1="49" x2="32" y2="54" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   <line x1="54" y1="32" x2="49" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                   <line x1="15" y1="32" x2="10" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <!-- Centro — disco rotativo da injetora -->
                   <circle cx="32" cy="32" r="14" fill="currentColor" opacity="0.15"/>
                   <circle cx="32" cy="32" r="11" stroke="currentColor" stroke-width="2.5" fill="none"/>
-                  <!-- Pontos das estações de injeção -->
                   <circle cx="32" cy="21" r="2.5" fill="currentColor"/>
                   <circle cx="42" cy="26" r="2.5" fill="currentColor"/>
                   <circle cx="42" cy="38" r="2.5" fill="currentColor"/>
                   <circle cx="32" cy="43" r="2.5" fill="currentColor"/>
                   <circle cx="22" cy="38" r="2.5" fill="currentColor"/>
                   <circle cx="22" cy="26" r="2.5" fill="currentColor"/>
-                  <!-- Ponteiro/seta de rotação -->
                   <path d="M32 32 L32 22" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
                   <circle cx="32" cy="32" r="3" fill="currentColor"/>
                 </svg>
@@ -58,7 +52,6 @@
             </div>
         </div>
 
-        <!-- Lado direito: botão do usuário -->
         <div class="header-actions">
             <button
                 class="user-menu-button"
@@ -80,7 +73,6 @@
         </div>
     </div>
 
-    <!-- Dropdown do menu do usuário -->
     <div class="user-menu-dropdown hidden" id="userMenuDropdown">
         <div class="user-menu-header">
             <div class="user-menu-avatar" id="userMenuAvatar">
@@ -474,38 +466,14 @@
     </section>
 </div>
 
+<script src="scripts.js"></script>
+
 <script>
-/* =======================================================
-   GERENCIAMENTO DE TELAS + BOTÃO VOLTAR DO CELULAR
-======================================================= */
-
-// Abre a tela da máquina e registra no histórico
-function abrirTelaMaquina() {
-    history.pushState({ tela: 'machineScreen' }, document.title);
-    document.getElementById('contextSection').classList.add('hidden');
-    document.getElementById('machineScreen').classList.remove('hidden');
+if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+        navigator.serviceWorker.register("./service-worker.js").catch(function(){});
+    });
 }
-
-// Fecha a tela da máquina — chamado pelo botão "Voltar"
-function fecharTelaMaquina() {
-    // Verifica se veio do histórico do navegador para não duplicar
-    if (!history.state || history.state.tela !== 'contextSection') {
-        history.replaceState({ tela: 'contextSection' }, document.title);
-    }
-    document.getElementById('machineScreen').classList.add('hidden');
-    document.getElementById('contextSection').classList.remove('hidden');
-}
-
-// Intercepta o botão VOLTAR nativo do celular/navegador
-window.addEventListener('popstate', function(event) {
-    if (event.state && event.state.tela === 'contextSection') {
-        // Usuário apertou voltar — volta para a lista de máquinas
-        document.getElementById('machineScreen').classList.add('hidden');
-        document.getElementById('contextSection').classList.remove('hidden');
-    }
-});
 </script>
-
-<script src="lider.js"></script>
 </body>
 </html>

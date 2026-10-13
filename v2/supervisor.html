@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head><link rel="manifest" href="./manifest.json">
+
+<meta name="theme-color" content="#176B45">
+
+<link
+    rel="apple-touch-icon"
+    href="./icons/apple-touch-icon.png"
+>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    >
+
+    <meta
+        name="theme-color"
+        content="#F2F2F7"
+    >
+
+    <title>Controle de Produção</title>
+
+    <link
+        rel="stylesheet"
+        href="supervisor.css"
+    >
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+    ></script>
+
+</head>
+
+
+<body>
+
+
+<header class="app-header">
+
+    <div class="header-inner">
+
+        <div>
+
+            <div class="app-title">
+                CONTROLE DE PRODUÇÃO
+            </div>
+
+            <div class="app-subtitle">
+                Setor de Injeção
+            </div>
+
+        </div>
+
+
+        <div class="header-actions">
+
+            <div
+                class="user-avatar"
+                id="userAvatar"
+            >
+                --
+            </div>
+
+            <button
+                class="logout-button"
+                onclick="sair()"
+                aria-label="Sair"
+            >
+                Sair
+            </button>
+
+        </div>
+
+    </div>
+
+</header>
+
+
+<main>
+
+
+    <!-- =====================================================
+         CONTEXTO
+    ====================================================== -->
+
+    <section>
+
+        <div class="supervisor-label">
+            SUPERVISOR
+        </div>
+
+
+        <div
+            class="supervisor-name"
+            id="supervisorName"
+        >
+            Carregando...
+        </div>
+
+
+        <div class="context-grid">
+
+
+            <div class="field-card context-date">
+
+                <div class="field-label">
+                    Data
+                </div>
+
+                <input
+                    type="date"
+                    id="data"
+                >
+
+            </div>
+
+
+            <div class="field-card">
+
+                <div class="field-label">
+                    Turno
+                </div>
+
+                <select id="turno">
+
+                    <option value="1º turno">
+                        1º turno
+                    </option>
+
+                    <option value="2º turno">
+                        2º turno
+                    </option>
+
+                    <option value="3º turno">
+                        3º turno
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="field-card">
+
+                <div class="field-label">
+                    Setor
+                </div>
+
+                <select id="setor">
+
+                    <option value="A">
+                        A
+                    </option>
+
+                    <option value="B">
+                        B
+                    </option>
+
+                    <option value="C">
+                        C
+                    </option>
+
+                </select>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         ABAS
+    ====================================================== -->
+
+    <div class="tabs">
+
+        <button
+            id="tabHoras"
+            class="tab active"
+            onclick="mostrarAba('horas')"
+        >
+            Horas baixadas
+        </button>
+
+
+        <button
+            id="tabDrive"
+            class="tab"
+            onclick="mostrarAba('drive')"
+        >
+            Drive
+        </button>
+
+    </div>
+
+
+    <!-- =====================================================
+         HORAS
+    ====================================================== -->
+
+    <section
+        id="abaHoras"
+        class="section"
+    >
+
+        <div class="section-title">
+
+            Horas baixadas setor
+
+            <span id="tituloSetor">
+                A
+            </span>
+
+        </div>
+
+
+        <div id="listaHoras"></div>
+
+
+        <!-- REVISÃO -->
+
+        <div
+            class="review-card"
+            id="reviewCard"
+        >
+
+            <div class="review-title">
+                Fechamento do turno
+            </div>
+
+            <div class="review-subtitle">
+                Revise os apontamentos antes de liberar o fechamento.
+            </div>
+
+            <button
+                class="review-button"
+                id="reviewButton"
+                onclick="marcarRevisado()"
+            >
+                Revisado ✓
+            </button>
+
+        </div>
+
+
+        <!-- FECHAMENTO -->
+
+        <div
+            class="closing-card hidden"
+            id="closingCard"
+        >
+
+            <div class="closing-title">
+                Fechamento do setor
+            </div>
+
+            <div class="closing-subtitle">
+                Texto pronto para compartilhar.
+            </div>
+
+
+            <textarea
+                id="textoFechamento"
+                class="closing-text"
+                readonly
+            ></textarea>
+
+
+            <button
+                class="send-button"
+                onclick="enviarWhatsApp()"
+            >
+                Enviar
+            </button>
+
+
+            <button
+                class="copy-closing"
+                onclick="copiarFechamento()"
+            >
+                Copiar fechamento
+            </button>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         DRIVE
+    ====================================================== -->
+
+    <section
+        id="abaDrive"
+        class="section hidden"
+    >
+
+        <div class="section-title">
+            Problemas do setor
+        </div>
+
+        <div id="listaDrive"></div>
+
+    </section>
+
+
+</main>
+
+
+<div
+    class="toast"
+    id="toast"
+></div>
+
+
+<div
+    class="loading hidden"
+    id="loading"
+>
+
+    <div class="loading-box">
+        Carregando...
+    </div>
+
+</div>
+
+
+<script src="supervisor.js"></script>
+
+</body>
+
+</html>
