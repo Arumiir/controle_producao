@@ -10,9 +10,9 @@ const APP_SHELL = [
   "./scripts.js",
   "./manifest.json",
   "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/icon-512.png"
 ];
+
 
 // =========================================================
 // INSTALAÇÃO E CACHE OFFLINE
