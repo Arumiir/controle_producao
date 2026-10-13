@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 
 <head>
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#F2F2F7">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
     <meta charset="UTF-8">
@@ -467,12 +467,12 @@
 </div>
 
 <script src="scripts.js"></script>
-<script src="push-notifications.js"></script>
+<script src="./push-notifications.js"></script>
 
 <script>
 if("serviceWorker" in navigator){
     window.addEventListener("load", function(){
-        navigator.serviceWorker.register("service-worker.js").catch(function(){});
+        navigator.serviceWorker.register("./service-worker.js").catch(function(){});
     });
 }
 </script>
