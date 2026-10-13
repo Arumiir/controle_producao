@@ -1895,8 +1895,20 @@ async function init(){
 
         await carregarPerfil();
 
-        /* O sino só é criado para a conta autorizada. */
-        configurarNotificacoes();
+/* Integra o Push à sessão autenticada existente. */
+window.__controlePushConfig = {
+    client: supabaseClient,
+    user: currentUser,
+    profile: currentProfile,
+    toast: showToast
+};
+
+if(typeof window.inicializarPushNotificacoes === "function"){
+    window.inicializarPushNotificacoes(window.__controlePushConfig);
+}
+
+/* O sino interno permanece inalterado. */
+configurarNotificacoes();
 
         if(!dateInput.value){
             dateInput.value = todayLocal();
@@ -3031,6 +3043,18 @@ async function init(){
         const acesso = await verificarAcesso();
 
         if(!acesso) return;
+
+       /* Integra o Push à sessão autenticada existente. */
+window.__controlePushConfig = {
+    client: supabaseClient,
+    user: currentUser,
+    profile: currentProfile,
+    toast: mostrarToast
+};
+
+if(typeof window.inicializarPushNotificacoes === "function"){
+    window.inicializarPushNotificacoes(window.__controlePushConfig);
+}
 
         dataInput.value = todayLocal();
         turnoInput.value = "1º turno";
