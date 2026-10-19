@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -173,11 +174,6 @@ let data = loadData();
 if(!data.configs || typeof data.configs !== 'object') data.configs = {};
 if(!Array.isArray(data.logs)) data.logs = [];
 
-/*
- * Migração compatível: os apontamentos antigos continuam disponíveis.
- * Apontamentos sem status de sincronização ficam como "legacy", não são
- * reenviados automaticamente para evitar duplicatas no Excel.
- */
 data.logs.forEach(log => {
   if(!log.syncStatus) log.syncStatus = 'legacy';
 });
@@ -547,8 +543,8 @@ function createId(){
 
 /*
  * Envio para o Power Automate.
- * Uma resposta HTTP de sucesso significa que o endpoint respondeu com 2xx;
- * não garante, por si só, que a linha foi gravada no Excel.
+ * O gatilho espera um objeto JSON, por isso o Content-Type é application/json.
+ * Uma resposta HTTP 2xx confirma a resposta do endpoint, não a gravação no Excel.
  */
 async function sendWebhook(log, silent = false){
   const registro = data.logs.find(item => item.id === log.id);
@@ -566,7 +562,9 @@ async function sendWebhook(log, silent = false){
   try{
     const response = await fetch(WEBHOOK_URL,{
       method:'POST',
-      headers:{'Content-Type':'text/plain;charset=UTF-8'},
+      headers:{
+        'Content-Type':'application/json'
+      },
       body:JSON.stringify(log)
     });
 
@@ -602,12 +600,6 @@ async function sendWebhook(log, silent = false){
   }
 }
 
-/*
- * Fila de sincronização:
- * - envia apenas registros novos que estão pendentes;
- * - não reenvia registros antigos sem status;
- * - evita duas filas simultâneas nesta aba.
- */
 async function syncPendingLogs(){
   if(syncInProgress || !navigator.onLine) return;
 
@@ -672,8 +664,6 @@ function selectPerda(perda){
   }
 
   toast('Apontamento salvo localmente');
-
-  // A função cuida do estado e das falhas de sincronização.
   sendWebhook(log);
 
   setTimeout(() => {
@@ -722,7 +712,6 @@ function buildPerdas(){
   });
 }
 
-/* Inicialização */
 document.getElementById('dataInput').value = data.date;
 document.getElementById('turnoSelect').value = String(data.turno || '1');
 
@@ -741,7 +730,6 @@ buildPerdas();
 showMachines();
 updateSyncSummary();
 
-// Reenvia pendências ao recuperar a conexão e enquanto o app estiver aberto.
 window.addEventListener('online',syncPendingLogs);
 window.addEventListener('focus',syncPendingLogs);
 document.addEventListener('visibilitychange',() => {
@@ -753,3 +741,4 @@ setTimeout(syncPendingLogs,1500);
 </script>
 </body>
 </html>
+```
