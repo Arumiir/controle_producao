@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -5,135 +6,59 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Estratificação das Perdas</title>
 <style>
-  :root {
-    --blue: #007AFF;
-    --bg: #F2F2F7;
-    --card: #FFFFFF;
-    --text: #1C1C1E;
-    --secondary: #8E8E93;
-    --border: rgba(0,0,0,0.06);
-    --shadow: 0 6px 20px rgba(0,0,0,0.06);
-  }
-  * { box-sizing: border-box; }
-  html, body {
-    height: 100%; margin: 0; background: var(--bg);
-    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
-    color: var(--text); overflow: hidden; -webkit-font-smoothing: antialiased;
-  }
-  .app { height: 100%; display: flex; flex-direction: column; max-width: 460px; margin: 0 auto; }
-  .content { flex: 1; overflow: hidden; padding: 12px; display: flex; flex-direction: column; }
-  .screen { display: none; height: 100%; flex-direction: column; }
-  .screen.active { display: flex; }
-
-  .page-header {
-    background: var(--card);
-    border-radius: 20px;
-    padding: 14px 16px;
-    margin-bottom: 12px;
-    box-shadow: var(--shadow);
-    text-align: center;
-  }
-  .page-header .title { font-weight: 600; font-size: 1.1rem; }
-  .page-header .subtitle { color: var(--secondary); font-size: 0.82rem; margin-top: 2px; }
-
-  .home-header {
-    background: var(--card);
-    border-radius: 22px;
-    padding: 16px;
-    margin: 12px 12px 0;
-    box-shadow: var(--shadow);
-  }
-  .home-header .top { display: flex; align-items: center; gap: 12px; }
-  .icon {
-    width: 40px; height: 40px; border-radius: 12px;
-    background: linear-gradient(135deg, #007AFF, #5AC8FA);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .date-turno {
-    display: flex; gap: 6px; background: #F2F2F7; border-radius: 12px; padding: 4px; margin-top: 12px;
-  }
-  .date-turno input, .date-turno select {
-    border: none; background: transparent; font-weight: 500; font-size: 0.92rem; outline: none; width: 100%;
-  }
-
-  .grid { display: grid; gap: 12px; flex: 1; align-content: center; }
-  .grid-2 { grid-template-columns: 1fr 1fr; }
-
-  .btn-card {
-    background: var(--card); border: none; border-radius: 18px;
-    box-shadow: var(--shadow); padding: 16px 10px; min-height: 80px;
-    cursor: pointer; transition: transform 0.12s; text-align: center;
-  }
-  .btn-card:active { transform: scale(0.96); }
-  .btn-station { color: var(--blue); }
-  .btn-perda {
-    background: var(--card); border: none; border-radius: 16px;
-    box-shadow: var(--shadow); padding: 14px 8px; font-weight: 500;
-    font-size: 0.88rem; min-height: 70px; cursor: pointer; transition: transform 0.1s;
-  }
-  .btn-perda:active { transform: scale(0.96); }
-
-  .slide-card {
-    background: var(--card); border-radius: 22px; box-shadow: var(--shadow);
-    padding: 24px 20px; flex: 1; display: flex; flex-direction: column; justify-content: center;
-  }
-  .underbar {
-    background: rgba(255,255,255,0.92); backdrop-filter: blur(16px);
-    border-top: 0.5px solid rgba(0,0,0,0.08); padding: 10px 16px 24px;
-  }
-  .underbar-btn {
-    width: 100%; background: #F2F2F7; border: none; border-radius: 14px;
-    padding: 14px; font-weight: 600; font-size: 1.05rem; color: var(--blue);
-    display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer;
-  }
-  .underbar-btn:active { transform: scale(0.98); background: #E5E5EA; }
-
-  .nav-bottom {
-    background: rgba(255,255,255,0.92); backdrop-filter: blur(16px);
-    border-top: 0.5px solid rgba(0,0,0,0.08); padding: 6px 0 20px; display: flex;
-  }
-  .nav-btn {
-    flex: 1; background: none; border: none; color: #8E8E93;
-    font-size: 11.5px; font-weight: 600; display: flex; flex-direction: column;
-    align-items: center; gap: 3px; cursor: pointer;
-  }
-  .nav-btn.active { color: var(--blue); }
-  .nav-btn svg { width: 22px; height: 22px; }
-
-  .progress { height: 4px; border-radius: 4px; background: #E5E5EA; overflow: hidden; }
-  .progress-bar { height: 100%; background: var(--blue); transition: width 0.3s; }
-  input, select {
-    border-radius: 12px; border: 1px solid var(--border); padding: 11px 12px;
-    font-size: 1rem; outline: none; width: 100%; background: #FAFAFA;
-  }
-  input:focus, select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(0,122,255,0.12); background: white; }
-  .toast-container { position: fixed; top: 16px; right: 16px; z-index: 2000; pointer-events: none; max-width: 260px; }
-  .toast-custom {
-    background: rgba(28,28,30,0.92); color: #fff; border-radius: 12px; padding: 12px 14px;
-    font-weight: 500; font-size: 0.88rem; box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-    opacity: 0; transform: translateX(12px); transition: all 0.25s; border-left: 3px solid #34C759;
-  }
-  .toast-custom.show { opacity: 1; transform: translateX(0); }
-  .report-card {
-    background: var(--card); border-radius: 16px; padding: 14px; box-shadow: var(--shadow);
-    cursor: pointer; text-align: center; transition: transform 0.1s;
-  }
-  .report-card:active { transform: scale(0.97); }
+:root{--blue:#007AFF;--bg:#F2F2F7;--card:#FFF;--text:#1C1C1E;--secondary:#8E8E93;--border:rgba(0,0,0,.06);--shadow:0 6px 20px rgba(0,0,0,.06)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;color:var(--text);overflow:hidden;-webkit-font-smoothing:antialiased}
+.app{height:100%;display:flex;flex-direction:column;max-width:460px;margin:0 auto}
+.content{flex:1;min-height:0;overflow:hidden;padding:12px;display:flex;flex-direction:column}
+.screen{display:none;height:100%;min-height:0;flex-direction:column}
+.screen.active{display:flex}
+.page-header{background:var(--card);border-radius:20px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow);text-align:center}
+.page-header .title{font-weight:600;font-size:1.1rem}
+.page-header .subtitle{color:var(--secondary);font-size:.82rem;margin-top:2px}
+.home-header{background:var(--card);border-radius:22px;padding:16px;margin:12px 12px 0;box-shadow:var(--shadow)}
+.home-header .top{display:flex;align-items:center;gap:12px}
+.icon{width:40px;height:40px;flex-shrink:0;border-radius:12px;background:linear-gradient(135deg,#007AFF,#5AC8FA);display:flex;align-items:center;justify-content:center}
+.date-turno{display:flex;gap:6px;background:#F2F2F7;border-radius:12px;padding:4px;margin-top:12px}
+.date-turno input,.date-turno select{border:none;background:transparent;font-weight:500;font-size:.92rem;outline:none;width:100%;min-width:0}
+.grid{display:grid;gap:12px;flex:1;align-content:center}
+.grid-2{grid-template-columns:1fr 1fr}
+.btn-card{background:var(--card);border:none;border-radius:18px;box-shadow:var(--shadow);padding:16px 10px;min-height:80px;cursor:pointer;transition:transform .12s;text-align:center;color:var(--text)}
+.btn-card:active,.btn-perda:active{transform:scale(.96)}
+.btn-station{color:var(--blue)}
+.btn-perda{background:var(--card);border:none;border-radius:16px;box-shadow:var(--shadow);padding:14px 8px;font-weight:500;font-size:.88rem;min-height:70px;cursor:pointer;transition:transform .1s;color:var(--text)}
+.slide-card{background:var(--card);border-radius:22px;box-shadow:var(--shadow);padding:24px 20px;flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;justify-content:center}
+.underbar,.nav-bottom{background:rgba(255,255,255,.92);backdrop-filter:blur(16px);border-top:.5px solid rgba(0,0,0,.08)}
+.underbar{padding:10px 16px 24px}
+.underbar-btn{width:100%;background:#F2F2F7;border:none;border-radius:14px;padding:14px;font-weight:600;font-size:1.05rem;color:var(--blue);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.nav-bottom{padding:6px 0 20px;display:flex}
+.nav-btn{flex:1;background:none;border:none;color:#8E8E93;font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.nav-btn.active{color:var(--blue)}
+.nav-btn svg{width:22px;height:22px}
+.progress{height:4px;border-radius:4px;background:#E5E5EA;overflow:hidden}
+.progress-bar{height:100%;background:var(--blue);transition:width .3s}
+input,select{border-radius:12px;border:1px solid var(--border);padding:11px 12px;font-size:1rem;outline:none;width:100%;background:#FAFAFA}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,122,255,.12);background:white}
+.toast-container{position:fixed;top:16px;right:16px;z-index:2000;pointer-events:none;max-width:280px}
+.toast-custom{background:rgba(28,28,30,.94);color:#fff;border-radius:12px;padding:12px 14px;font-weight:500;font-size:.88rem;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transform:translateX(12px);transition:all .25s;border-left:3px solid #34C759}
+.toast-custom.show{opacity:1;transform:translateX(0)}
+.report-card{background:var(--card);border-radius:16px;padding:14px;box-shadow:var(--shadow);cursor:pointer;text-align:center;transition:transform .1s}
+.report-card:active{transform:scale(.97)}
+#reportSummary{overflow:auto;min-height:0}
+#screen-perdas .grid{overflow:auto;align-content:start;padding-bottom:4px}
+.primary-btn{width:100%;margin-top:12px;background:var(--blue);color:white;border:none;border-radius:16px;padding:15px;font-weight:600;font-size:1.05rem}
 </style>
 </head>
 <body>
 <div class="app">
-
   <div class="home-header" id="mainHeader">
     <div class="top">
       <div class="icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4">
-          <path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="2.5" fill="white"/>
-        </svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="2.5" fill="white"/></svg>
       </div>
       <div>
-        <div style="font-weight:600; font-size:1.12rem;">Estratificação das Perdas</div>
-        <div style="color:var(--secondary); font-size:0.84rem;" id="headerInfo">Selecione a máquina</div>
+        <div style="font-weight:600;font-size:1.12rem">Estratificação das Perdas</div>
+        <div style="color:var(--secondary);font-size:.84rem" id="headerInfo">Selecione a máquina</div>
       </div>
     </div>
     <div class="date-turno">
@@ -147,283 +72,360 @@
   </div>
 
   <div class="content">
-    <div id="screen-machines" class="screen active">
-      <div class="grid grid-2" id="machinesGrid"></div>
-    </div>
+    <div id="screen-machines" class="screen active"><div class="grid grid-2" id="machinesGrid"></div></div>
 
     <div id="screen-config" class="screen">
-      <div class="page-header">
-        <div class="title" id="configMachineName">Configurando</div>
-        <div class="subtitle">Números e referências</div>
-      </div>
-      <div class="progress" style="margin-bottom:10px;"><div class="progress-bar" id="configProgress"></div></div>
+      <div class="page-header"><div class="title" id="configMachineName">Configurando</div><div class="subtitle">Números e referências</div></div>
+      <div class="progress" style="margin-bottom:10px"><div class="progress-bar" id="configProgress"></div></div>
       <div class="slide-card" id="configSlide"></div>
-      <button style="width:100%; margin-top:12px; background:var(--blue); color:white; border:none; border-radius:16px; padding:15px; font-weight:600; font-size:1.05rem;" id="btnSaveConfig" onclick="saveCurrentStation()">Salvar e Próxima</button>
+      <button class="primary-btn" id="btnSaveConfig" onclick="saveCurrentStation()">Salvar e Próxima</button>
     </div>
 
     <div id="screen-stations" class="screen">
-      <div class="page-header">
-        <div class="title" id="stationsMachine">Estações</div>
-        <div class="subtitle">Selecione a estação</div>
-      </div>
-      <div style="text-align:right; margin-bottom:8px;">
-        <button onclick="reconfigure()" style="background:#F2F2F7; border:none; border-radius:12px; padding:6px 12px; font-size:0.82rem; color:var(--blue); font-weight:500;">Editar matriz</button>
-      </div>
+      <div class="page-header"><div class="title" id="stationsMachine">Estações</div><div class="subtitle">Selecione a estação</div></div>
+      <div style="text-align:right;margin-bottom:8px"><button onclick="reconfigure()" style="background:#F2F2F7;border:none;border-radius:12px;padding:6px 12px;font-size:.82rem;color:var(--blue);font-weight:500">Editar matriz</button></div>
       <div class="grid grid-2" id="stationsGrid"></div>
     </div>
 
     <div id="screen-sides" class="screen">
-      <div class="page-header">
-        <div class="title" id="sideTitle">Lado</div>
-        <div class="subtitle" id="sideInfo"></div>
-      </div>
-      <div class="grid grid-2" style="align-content:center; flex:1;">
-        <button class="btn-card" style="background:#007AFF; color:white;" onclick="selectSide('Esq')">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
-          <div style="margin-top:4px; font-weight:600;">Esquerdo</div>
-        </button>
-        <button class="btn-card" style="background:#FF3B30; color:white;" onclick="selectSide('Dir')">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6"/></svg>
-          <div style="margin-top:4px; font-weight:600;">Direito</div>
-        </button>
+      <div class="page-header"><div class="title" id="sideTitle">Lado</div><div class="subtitle" id="sideInfo"></div></div>
+      <div class="grid grid-2" style="align-content:center;flex:1">
+        <button class="btn-card" style="background:#007AFF;color:white" onclick="selectSide('Esq')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg><div style="margin-top:4px;font-weight:600">Esquerdo</div></button>
+        <button class="btn-card" style="background:#FF3B30;color:white" onclick="selectSide('Dir')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6"/></svg><div style="margin-top:4px;font-weight:600">Direito</div></button>
       </div>
     </div>
 
     <div id="screen-perdas" class="screen">
-      <div class="page-header">
-        <div class="title">Apontamento</div>
-        <div class="subtitle" id="perdaInfo"></div>
-      </div>
+      <div class="page-header"><div class="title">Apontamento</div><div class="subtitle" id="perdaInfo"></div></div>
       <div class="grid grid-2" id="perdasGrid"></div>
     </div>
 
     <div id="screen-report" class="screen">
-      <div class="page-header">
-        <div class="title">Relatório</div>
-        <div class="subtitle" id="reportSubtitle"></div>
-      </div>
-      <div id="reportSummary" style="flex:1; overflow:auto;"></div>
+      <div class="page-header"><div class="title">Relatório</div><div class="subtitle" id="reportSubtitle"></div></div>
+      <div id="reportSummary" style="flex:1"></div>
     </div>
   </div>
 
-  <div class="underbar" id="underbar" style="display:none;">
-    <button class="underbar-btn" onclick="goBack()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>
-      Voltar
-    </button>
-  </div>
+  <div class="underbar" id="underbar" style="display:none"><button class="underbar-btn" onclick="goBack()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6"/></svg>Voltar</button></div>
 
   <div class="nav-bottom" id="hotbar">
-    <button class="nav-btn active" onclick="showMachines()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
-      Máquinas
-    </button>
-    <button class="nav-btn" onclick="showReport()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
-      Relatório
-    </button>
+    <button class="nav-btn active" onclick="showMachines()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>Máquinas</button>
+    <button class="nav-btn" onclick="showReport()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>Relatório</button>
   </div>
 </div>
-
 <div class="toast-container"><div id="customToast" class="toast-custom"></div></div>
 
 <script>
-const MACHINES = [{id:'SIE01',name:'SIE01'},{id:'SIE02',name:'SIE02'},{id:'SIE03',name:'SIE03'},{id:'SIE04',name:'SIE04'},{id:'SIE05A',name:'SIE05A'},{id:'SIE05B',name:'SIE05B'},{id:'SEI06',name:'SEI06'}];
-const PERDAS = ["Escape de gás press. (Solta)","Escape de gás press. (Gaspa)","Contaminação","Tamanho Menor","Excesso de Carga","Falta de Carga","Peça Rasgada","Sujura Pés. Manut.","Contra Pé","Pezinho Presso","Escape de Gás Aberto"];
+'use strict';
+
+const MACHINES = [
+  {id:'SIE01',name:'SIE01'},{id:'SIE02',name:'SIE02'},
+  {id:'SIE03',name:'SIE03'},{id:'SIE04',name:'SIE04'},
+  {id:'SIE05A',name:'SIE05A'},{id:'SIE05B',name:'SIE05B'},
+  {id:'SEI06',name:'SEI06'}
+];
+const PERDAS = [
+  "Escape de gás press. (Solta)","Escape de gás press. (Gaspa)",
+  "Contaminação","Tamanho Menor","Excesso de Carga","Falta de Carga",
+  "Peça Rasgada","Sujura Pés. Manut.","Contra Pé","Pezinho Presso",
+  "Escape de Gás Aberto"
+];
 const KEY = 'estrat_perdas_v3';
 const WEBHOOK_URL = "https://defaultb7ed67afba404040a386ab53a0ad3e.96.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/14/workflows/3f93ccf6636843d09f63309daa1400fa/triggers/manual/paths/invoke?api-version=1";
 
-let data = JSON.parse(localStorage.getItem(KEY)) || { date: new Date().toISOString().slice(0,10), turno: '1', configs: {}, logs: [] };
-let currentMachine = null, currentStationIndex = 1, currentEstacao = null, currentLado = null, history = [];
-
-function save() {
-  data.date = document.getElementById('dataInput').value;
-  data.turno = document.getElementById('turnoSelect').value;
-  localStorage.setItem(KEY, JSON.stringify(data));
+function loadData(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if(saved && typeof saved === 'object') return saved;
+  } catch(e){ console.error('Erro ao ler dados locais:',e); }
+  return {date:new Date().toISOString().slice(0,10),turno:'1',configs:{},logs:[]};
 }
-function toast(msg) {
-  const el = document.getElementById('customToast');
-  el.textContent = msg; el.classList.add('show');
+let data=loadData();
+if(!data.configs) data.configs={};
+if(!Array.isArray(data.logs)) data.logs=[];
+let currentMachine=null,currentStationIndex=1,currentEstacao=null,currentLado=null,history=[];
+
+function save(){
+  data.date=document.getElementById('dataInput').value;
+  data.turno=document.getElementById('turnoSelect').value;
+  localStorage.setItem(KEY,JSON.stringify(data));
+}
+
+function toast(msg){
+  const el=document.getElementById('customToast');
+  el.textContent=msg;el.classList.add('show');
   clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(() => el.classList.remove('show'), 1100);
+  window._toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
 }
-function show(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  const isHome = id === 'screen-machines';
-  document.getElementById('mainHeader').style.display = isHome ? 'block' : 'none';
-  document.getElementById('hotbar').style.display = isHome ? 'flex' : 'none';
-  document.getElementById('underbar').style.display = isHome ? 'none' : 'block';
-}
-function goBack() {
-  if (history.length > 1) {
-    history.pop();
-    const prev = history[history.length - 1];
-    show(prev);
-    if (prev === 'screen-stations') buildStations();
-    if (prev === 'screen-config') renderConfigSlide();
-  } else showMachines();
-}
-function pushScreen(id) { if (history[history.length-1] !== id) history.push(id); show(id); }
 
-function showMachines() {
-  history = ['screen-machines']; show('screen-machines');
-  document.getElementById('headerInfo').textContent = 'Selecione a máquina';
-  currentMachine = null;
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const home=id==='screen-machines';
+  document.getElementById('mainHeader').style.display=home?'block':'none';
+  document.getElementById('hotbar').style.display=home?'flex':'none';
+  document.getElementById('underbar').style.display=home?'none':'block';
 }
-function showConfig() {
+
+function goBack(){
+  if(history.length>1){
+    history.pop();
+    const prev=history[history.length-1];
+    show(prev);
+    if(prev==='screen-stations') buildStations();
+    if(prev==='screen-config') renderConfigSlide();
+  }else showMachines();
+}
+function pushScreen(id){
+  if(history[history.length-1]!==id) history.push(id);
+  show(id);
+}
+function showMachines(){
+  history=['screen-machines'];show('screen-machines');
+  document.getElementById('headerInfo').textContent='Selecione a máquina';
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  currentMachine=null;
+}
+function showConfig(){
   pushScreen('screen-config');
-  document.getElementById('configMachineName').textContent = currentMachine.name;
+  document.getElementById('configMachineName').textContent=currentMachine.name;
   renderConfigSlide();
 }
-function showStations() {
-  if (!currentMachine) return showMachines();
-  if (history[history.length-1] !== 'screen-stations') history = ['screen-machines','screen-stations'];
+function showStations(){
+  if(!currentMachine)return showMachines();
+  if(history[history.length-1]!=='screen-stations')history=['screen-machines','screen-stations'];
   show('screen-stations');
-  document.getElementById('stationsMachine').textContent = currentMachine.name;
+  document.getElementById('stationsMachine').textContent=currentMachine.name;
   buildStations();
 }
-function showSides() {
+function showSides(){
   pushScreen('screen-sides');
-  const cfg = getStationCfg(currentEstacao);
-  document.getElementById('sideTitle').textContent = 'Estação ' + String(currentEstacao).padStart(2,'0');
-  document.getElementById('sideInfo').textContent = cfg.same ? `Nº ${cfg.num||'—'} • Ref. ${cfg.ref||'—'}` : `Esq ${cfg.numEsq||'—'}/${cfg.refEsq||'—'} • Dir ${cfg.numDir||'—'}/${cfg.refDir||'—'}`;
+  const cfg=getStationCfg(currentEstacao);
+  document.getElementById('sideTitle').textContent='Estação '+String(currentEstacao).padStart(2,'0');
+  document.getElementById('sideInfo').textContent=cfg.same
+    ?`Nº ${cfg.num||'—'} • Ref. ${cfg.ref||'—'}`
+    :`Esq ${cfg.numEsq||'—'}/${cfg.refEsq||'—'} • Dir ${cfg.numDir||'—'}/${cfg.refDir||'—'}`;
 }
-function showPerdas() {
+function showPerdas(){
   pushScreen('screen-perdas');
-  document.getElementById('perdaInfo').textContent = `Estação ${currentEstacao} • Lado ${currentLado==='Esq'?'Esquerdo':'Direito'}`;
+  document.getElementById('perdaInfo').textContent=`Estação ${currentEstacao} • Lado ${currentLado==='Esq'?'Esquerdo':'Direito'}`;
 }
-function showReport() {
+function showReport(){
   pushScreen('screen-report');
-  const todayLogs = data.logs.filter(l => l.date === data.date);
-  const turnoLabel = {'1':'1° Turno','2':'2° Turno','3':'3° Turno'}[data.turno] || data.turno;
-  document.getElementById('reportSubtitle').textContent = `${data.date.split('-').reverse().join('/')} • ${turnoLabel}`;
-  const container = document.getElementById('reportSummary');
-  if (!todayLogs.length) { container.innerHTML = '<div style="text-align:center;color:var(--secondary);padding:40px 0;">Nenhum apontamento hoje</div>'; return; }
-
-  const byMachine = {};
-  todayLogs.forEach(l => {
-    if (!byMachine[l.machine]) byMachine[l.machine] = {};
-    if (!byMachine[l.machine][l.estacao]) byMachine[l.machine][l.estacao] = {};
-    if (!byMachine[l.machine][l.estacao][l.lado]) byMachine[l.machine][l.estacao][l.lado] = { num:l.num, ref:l.ref, perdas:{} };
-    const p = byMachine[l.machine][l.estacao][l.lado].perdas;
-    p[l.perda] = (p[l.perda]||0)+1;
+  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',i===1));
+  const todayLogs=data.logs.filter(l=>l.date===data.date&&l.turno===data.turno);
+  const turnoLabel={'1':'1° Turno','2':'2° Turno','3':'3° Turno'}[data.turno]||data.turno;
+  document.getElementById('reportSubtitle').textContent=`${data.date.split('-').reverse().join('/')} • ${turnoLabel}`;
+  const container=document.getElementById('reportSummary');
+  if(!todayLogs.length){
+    container.innerHTML='<div style="text-align:center;color:var(--secondary);padding:40px 0">Nenhum apontamento neste turno</div>';
+    return;
+  }
+  const byMachine={};
+  todayLogs.forEach(l=>{
+    if(!byMachine[l.machine])byMachine[l.machine]={};
+    if(!byMachine[l.machine][l.estacao])byMachine[l.machine][l.estacao]={};
+    if(!byMachine[l.machine][l.estacao][l.lado])
+      byMachine[l.machine][l.estacao][l.lado]={num:l.num,ref:l.ref,perdas:{}};
+    const p=byMachine[l.machine][l.estacao][l.lado].perdas;
+    p[l.perda]=(p[l.perda]||0)+1;
   });
-
-  let html = '<div class="grid grid-2">';
-  Object.keys(byMachine).sort().forEach(maq => {
-    const total = todayLogs.filter(l=>l.machine===maq).length;
-    html += `<div class="report-card" onclick="toggleMachine('${maq}')"><div style="font-weight:600;">${maq}</div><div style="color:var(--secondary);font-size:0.8rem;">${total} apontamento${total>1?'s':''}</div></div>`;
+  let html='<div class="grid grid-2" style="flex:none">';
+  Object.keys(byMachine).sort().forEach(maq=>{
+    const total=todayLogs.filter(l=>l.machine===maq).length;
+    html+=`<div class="report-card" onclick="toggleMachine('${maq}')"><div style="font-weight:600">${maq}</div><div style="color:var(--secondary);font-size:.8rem">${total} apontamento(s)</div></div>`;
   });
-  html += '</div><div id="machineDetails" style="margin-top:10px;"></div>';
-  container.innerHTML = html;
+  html+='</div><div id="machineDetails" style="margin-top:10px"></div>';
+  container.innerHTML=html;
 
-  window.toggleMachine = function(maq) {
-    const d = document.getElementById('machineDetails');
-    if (d.dataset.open === maq) { d.innerHTML=''; d.dataset.open=''; return; }
-    d.dataset.open = maq;
-    const stations = byMachine[maq];
-    let h = `<div style="font-weight:600;margin-bottom:6px;">${maq}</div><div class="grid grid-2">`;
-    Object.keys(stations).sort((a,b)=>a-b).forEach(est => {
-      h += `<div class="report-card" onclick="toggleStation('${maq}',${est})"><div style="font-weight:600;">Est. ${String(est).padStart(2,'0')}</div></div>`;
+  window.toggleMachine=function(maq){
+    const d=document.getElementById('machineDetails');
+    if(d.dataset.open===maq){d.innerHTML='';d.dataset.open='';return;}
+    d.dataset.open=maq;
+    const stations=byMachine[maq];
+    let h=`<div style="font-weight:600;margin-bottom:6px">${maq}</div><div class="grid grid-2" style="flex:none">`;
+    Object.keys(stations).sort((a,b)=>a-b).forEach(est=>{
+      h+=`<div class="report-card" onclick="toggleStation('${maq}',${est})"><div style="font-weight:600">Est. ${String(est).padStart(2,'0')}</div></div>`;
     });
-    h += '</div><div id="stationDetails" style="margin-top:8px;"></div>';
-    d.innerHTML = h;
-    window.toggleStation = function(maq, est) {
-      const sd = document.getElementById('stationDetails');
-      if (sd.dataset.open === String(est)) { sd.innerHTML=''; sd.dataset.open=''; return; }
-      sd.dataset.open = String(est);
-      const sides = stations[est];
-      let sh = '';
-      ['Esq','Dir'].forEach(lado => {
-        if (!sides[lado]) return;
-        const info = sides[lado];
-        const perdas = Object.entries(info.perdas).map(([p,c])=>`<div style="font-size:0.84rem;margin-top:3px;">${c}× ${p}</div>`).join('');
-        sh += `<div class="report-card" style="text-align:left;margin-bottom:8px;cursor:default;"><div style="font-weight:600;">${lado==='Esq'?'Esquerdo':'Direito'}</div><div style="color:var(--secondary);font-size:0.8rem;">Nº ${info.num||'—'} • Ref. ${info.ref||'—'}</div>${perdas}</div>`;
+    h+='</div><div id="stationDetails" style="margin-top:8px"></div>';
+    d.innerHTML=h;
+    window.toggleStation=function(machine,est){
+      const sd=document.getElementById('stationDetails');
+      if(sd.dataset.open===String(est)){sd.innerHTML='';sd.dataset.open='';return;}
+      sd.dataset.open=String(est);
+      let sh='';
+      ['Esq','Dir'].forEach(lado=>{
+        const info=stations[est][lado];
+        if(!info)return;
+        const perdas=Object.entries(info.perdas).map(([p,c])=>
+          `<div style="font-size:.84rem;margin-top:3px">${c}× ${escapeHtml(p)}</div>`).join('');
+        sh+=`<div class="report-card" style="text-align:left;margin-bottom:8px;cursor:default"><div style="font-weight:600">${lado==='Esq'?'Esquerdo':'Direito'}</div><div style="color:var(--secondary);font-size:.8rem">Nº ${escapeHtml(info.num||'—')} • Ref. ${escapeHtml(info.ref||'—')}</div>${perdas}</div>`;
       });
-      sd.innerHTML = sh || '<div style="color:var(--secondary);font-size:0.85rem;">Sem dados</div>';
+      sd.innerHTML=sh||'<div style="color:var(--secondary);font-size:.85rem">Sem dados</div>';
     };
   };
 }
-
-function selectMachine(m) {
-  currentMachine = m;
-  if (!data.configs[m.id]) data.configs[m.id] = { configured:false, stations:{} };
-  save();
-  if (data.configs[m.id].configured) showStations();
-  else { currentStationIndex = 1; showConfig(); }
+function escapeHtml(v){
+  return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-function getStationCfg(est) {
-  if (!data.configs[currentMachine.id].stations[est]) data.configs[currentMachine.id].stations[est] = { same:true, num:'', ref:'', numEsq:'', refEsq:'', numDir:'', refDir:'' };
+function selectMachine(m){
+  currentMachine=m;
+  if(!data.configs[m.id])data.configs[m.id]={configured:false,stations:{}};
+  save();
+  if(data.configs[m.id].configured)showStations();
+  else{currentStationIndex=1;showConfig();}
+}
+function getStationCfg(est){
+  if(!data.configs[currentMachine.id].stations[est])
+    data.configs[currentMachine.id].stations[est]={same:true,num:'',ref:'',numEsq:'',refEsq:'',numDir:'',refDir:''};
   return data.configs[currentMachine.id].stations[est];
 }
-function renderConfigSlide() {
-  const est = currentStationIndex;
-  const cfg = getStationCfg(est);
-  document.getElementById('configProgress').style.width = (est/8*100)+'%';
-  document.getElementById('configSlide').innerHTML = `
-    <div style="text-align:center;margin-bottom:16px;"><div style="font-size:2.6rem;font-weight:600;color:var(--blue);">${String(est).padStart(2,'0')}</div><div style="color:var(--secondary);">Estação</div></div>
-    <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px;"><input type="checkbox" id="sameSwitch" ${cfg.same?'checked':''} onchange="toggleSame()" style="width:auto;"><span>Mesmo número e referência nos dois lados</span></label>
-    <div id="fieldsSame" style="${cfg.same?'':'display:none'}"><div style="margin-bottom:12px;"><div style="font-size:0.8rem;color:var(--secondary);margin-bottom:4px;">Número</div><input id="num" value="${cfg.num||''}" placeholder="Ex: 36"></div><div><div style="font-size:0.8rem;color:var(--secondary);margin-bottom:4px;">Referência</div><input id="ref" value="${cfg.ref||''}" placeholder="Ex: 3"></div></div>
-    <div id="fieldsSeparate" style="${cfg.same?'display:none':''}"><div class="grid grid-2"><div><div style="font-size:0.8rem;color:var(--secondary);">Nº Esq</div><input id="numEsq" value="${cfg.numEsq||''}"></div><div><div style="font-size:0.8rem;color:var(--secondary);">Ref. Esq</div><input id="refEsq" value="${cfg.refEsq||''}"></div><div><div style="font-size:0.8rem;color:var(--secondary);">Nº Dir</div><input id="numDir" value="${cfg.numDir||''}"></div><div><div style="font-size:0.8rem;color:var(--secondary);">Ref. Dir</div><input id="refDir" value="${cfg.refDir||''}"></div></div></div>`;
-  document.getElementById('btnSaveConfig').textContent = est===8 ? 'Salvar e Começar' : 'Salvar e Próxima';
+function renderConfigSlide(){
+  const est=currentStationIndex,cfg=getStationCfg(est);
+  document.getElementById('configProgress').style.width=(est/8*100)+'%';
+  document.getElementById('configSlide').innerHTML=`
+    <div style="text-align:center;margin-bottom:16px"><div style="font-size:2.6rem;font-weight:600;color:var(--blue)">${String(est).padStart(2,'0')}</div><div style="color:var(--secondary)">Estação</div></div>
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><input type="checkbox" id="sameSwitch" ${cfg.same?'checked':''} onchange="toggleSame()" style="width:auto"><span>Mesmo número e referência nos dois lados</span></label>
+    <div id="fieldsSame" style="${cfg.same?'':'display:none'}">
+      <div style="margin-bottom:12px"><div style="font-size:.8rem;color:var(--secondary);margin-bottom:4px">Número</div><input id="num" value="${escapeHtml(cfg.num||'')}" placeholder="Ex: 36"></div>
+      <div><div style="font-size:.8rem;color:var(--secondary);margin-bottom:4px">Referência</div><input id="ref" value="${escapeHtml(cfg.ref||'')}" placeholder="Ex: 3"></div>
+    </div>
+    <div id="fieldsSeparate" style="${cfg.same?'display:none':''}"><div class="grid grid-2">
+      <div><div style="font-size:.8rem;color:var(--secondary)">Nº Esq</div><input id="numEsq" value="${escapeHtml(cfg.numEsq||'')}"></div>
+      <div><div style="font-size:.8rem;color:var(--secondary)">Ref. Esq</div><input id="refEsq" value="${escapeHtml(cfg.refEsq||'')}"></div>
+      <div><div style="font-size:.8rem;color:var(--secondary)">Nº Dir</div><input id="numDir" value="${escapeHtml(cfg.numDir||'')}"></div>
+      <div><div style="font-size:.8rem;color:var(--secondary)">Ref. Dir</div><input id="refDir" value="${escapeHtml(cfg.refDir||'')}"></div>
+    </div></div>`;
+  document.getElementById('btnSaveConfig').textContent=est===8?'Salvar e Começar':'Salvar e Próxima';
 }
-function toggleSame() {
-  const same = document.getElementById('sameSwitch').checked;
-  document.getElementById('fieldsSame').style.display = same?'block':'none';
-  document.getElementById('fieldsSeparate').style.display = same?'none':'block';
+function toggleSame(){
+  const same=document.getElementById('sameSwitch').checked;
+  document.getElementById('fieldsSame').style.display=same?'block':'none';
+  document.getElementById('fieldsSeparate').style.display=same?'none':'block';
 }
-function saveCurrentStation() {
-  const est = currentStationIndex; const cfg = getStationCfg(est);
-  cfg.same = document.getElementById('sameSwitch').checked;
-  if (cfg.same) { cfg.num = document.getElementById('num').value.trim(); cfg.ref = document.getElementById('ref').value.trim(); }
-  else { cfg.numEsq = document.getElementById('numEsq').value.trim(); cfg.refEsq = document.getElementById('refEsq').value.trim(); cfg.numDir = document.getElementById('numDir').value.trim(); cfg.refDir = document.getElementById('refDir').value.trim(); }
+function saveCurrentStation(){
+  const est=currentStationIndex,cfg=getStationCfg(est);
+  cfg.same=document.getElementById('sameSwitch').checked;
+  if(cfg.same){
+    cfg.num=document.getElementById('num').value.trim();
+    cfg.ref=document.getElementById('ref').value.trim();
+  }else{
+    cfg.numEsq=document.getElementById('numEsq').value.trim();
+    cfg.refEsq=document.getElementById('refEsq').value.trim();
+    cfg.numDir=document.getElementById('numDir').value.trim();
+    cfg.refDir=document.getElementById('refDir').value.trim();
+  }
   save();
-  if (currentStationIndex < 8) { currentStationIndex++; renderConfigSlide(); }
-  else { data.configs[currentMachine.id].configured = true; save(); toast('Configuração concluída'); showStations(); }
-}
-function reconfigure() { if (confirm('Reconfigurar números e referências?')) { data.configs[currentMachine.id].configured=false; currentStationIndex=1; save(); showConfig(); } }
-function selectStation(n) { currentEstacao = n; showSides(); }
-function selectSide(lado) { currentLado = lado; showPerdas(); }
-function selectPerda(perda) {
-  const cfg = getStationCfg(currentEstacao);
-  let num='', ref='';
-  if (cfg.same) { num=cfg.num; ref=cfg.ref; } else { if (currentLado==='Esq'){num=cfg.numEsq;ref=cfg.refEsq;} else {num=cfg.numDir;ref=cfg.refDir;} }
-  const log = { machine:currentMachine.id, estacao:currentEstacao, lado:currentLado, perda, num, ref, time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}), date:data.date, turno:data.turno };
-  data.logs.push(log); save(); toast(`Apontado • Est. ${currentEstacao} ${currentLado}`);
-  if (WEBHOOK_URL && !WEBHOOK_URL.includes('https://defaultb7ed67afba404040a386ab53a0ad3e.96.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/14/workflows/3f93ccf6636843d09f63309daa1400fa/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6mc3qXesRaT0uQn2KiyAAH64tTzhKNLO1NRMNmzis-M')) {
-    fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(log)
-    })
-    .then(r => console.log('Webhook status:', r.status))
-    .catch(err => console.error('Webhook erro:', err));
+  if(currentStationIndex<8){currentStationIndex++;renderConfigSlide();}
+  else{
+    data.configs[currentMachine.id].configured=true;
+    save();toast('Configuração concluída');showStations();
   }
-  setTimeout(()=>{ history=['screen-machines','screen-stations']; showStations(); }, 260);
 }
-function buildMachines() {
-  document.getElementById('machinesGrid').innerHTML = MACHINES.map(m => `<button class="btn-card" onclick="selectMachineById('${m.id}')"><div style="font-weight:600;">${m.name}</div></button>`).join('');
-}
-function selectMachineById(id) { selectMachine(MACHINES.find(m=>m.id===id)); }
-function buildStations() {
-  let h='';
-  for (let i=1;i<=8;i++) {
-    const cfg=getStationCfg(i);
-    const label = cfg.same ? `${cfg.num||'—'} / ${cfg.ref||'—'}` : `E ${cfg.numEsq||'—'} · D ${cfg.numDir||'—'}`;
-    h += `<button class="btn-card btn-station" onclick="selectStation(${i})"><div style="font-size:0.72rem;color:var(--secondary);">Estação</div><div style="font-weight:600;font-size:1.35rem;">${String(i).padStart(2,'0')}</div><div style="font-size:0.72rem;color:var(--secondary);">${label}</div></button>`;
+function reconfigure(){
+  if(confirm('Reconfigurar números e referências?')){
+    data.configs[currentMachine.id].configured=false;
+    currentStationIndex=1;save();showConfig();
   }
-  document.getElementById('stationsGrid').innerHTML = h;
 }
-function buildPerdas() {
-  document.getElementById('perdasGrid').innerHTML = PERDAS.map(p => `<button class="btn-perda" onclick="selectPerda('${p.replace(/'/g,"\\'")}')">${p}</button>`).join('');
+function selectStation(n){currentEstacao=n;showSides();}
+function selectSide(lado){currentLado=lado;showPerdas();}
+
+/*
+ * Envia o apontamento como texto JSON para testar o gatilho HTTP.
+ * text/plain evita o preflight CORS causado pelo Content-Type application/json.
+ * O fluxo precisa interpretar o corpo como JSON antes de inserir na tabela.
+ */
+async function sendWebhook(log){
+  try{
+    const resposta=await fetch(WEBHOOK_URL,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=UTF-8'},
+      body:JSON.stringify(log)
+    });
+    const texto=await resposta.text();
+    console.info('Webhook HTTP:',resposta.status,'Resposta:',texto);
+    if(!resposta.ok){
+      console.error('O Power Automate respondeu com erro HTTP',resposta.status);
+      toast('Erro HTTP '+resposta.status+' no envio');
+      return {ok:false,status:resposta.status};
+    }
+    toast('Apontamento enviado');
+    return {ok:true,status:resposta.status};
+  }catch(erro){
+    console.error('Falha no webhook:',erro);
+    toast('Falha no envio. Verifique o console');
+    return {ok:false,error:String(erro)};
+  }
 }
 
-document.getElementById('dataInput').value = data.date;
-document.getElementById('turnoSelect').value = data.turno || '1';
-document.getElementById('dataInput').onchange = save;
-document.getElementById('turnoSelect').onchange = save;
-buildMachines(); buildPerdas(); showMachines();
+function selectPerda(perda){
+  const cfg=getStationCfg(currentEstacao);
+  let num='',ref='';
+  if(cfg.same){num=cfg.num;ref=cfg.ref;}
+  else if(currentLado==='Esq'){num=cfg.numEsq;ref=cfg.refEsq;}
+  else{num=cfg.numDir;ref=cfg.refDir;}
+
+  const log={
+    id:typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2),
+    machine:currentMachine.id,
+    estacao:currentEstacao,
+    lado:currentLado,
+    perda,
+    num,ref,
+    time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    timestamp:new Date().toISOString(),
+    date:data.date,
+    turno:data.turno
+  };
+
+  data.logs.push(log);
+  save();
+  toast('Apontamento salvo localmente');
+
+  // Envio independente do armazenamento local.
+  sendWebhook(log);
+
+  setTimeout(()=>{
+    history=['screen-machines','screen-stations'];
+    showStations();
+  },260);
+}
+
+function buildMachines(){
+  document.getElementById('machinesGrid').innerHTML=MACHINES.map(m=>
+    `<button class="btn-card" onclick="selectMachineById('${m.id}')"><div style="font-weight:600">${m.name}</div></button>`
+  ).join('');
+}
+function selectMachineById(id){
+  const m=MACHINES.find(x=>x.id===id);
+  if(m)selectMachine(m);
+}
+function buildStations(){
+  let h='';
+  for(let i=1;i<=8;i++){
+    const cfg=getStationCfg(i);
+    const label=cfg.same?`${cfg.num||'—'} / ${cfg.ref||'—'}`:`E ${cfg.numEsq||'—'} · D ${cfg.numDir||'—'}`;
+    h+=`<button class="btn-card btn-station" onclick="selectStation(${i})"><div style="font-size:.72rem;color:var(--secondary)">Estação</div><div style="font-weight:600;font-size:1.35rem">${String(i).padStart(2,'0')}</div><div style="font-size:.72rem;color:var(--secondary)">${escapeHtml(label)}</div></button>`;
+  }
+  document.getElementById('stationsGrid').innerHTML=h;
+}
+function buildPerdas(){
+  document.getElementById('perdasGrid').innerHTML=PERDAS.map(p=>
+    `<button class="btn-perda" data-perda="${escapeHtml(p)}">${escapeHtml(p)}</button>`
+  ).join('');
+  document.getElementById('perdasGrid').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click',()=>selectPerda(btn.dataset.perda));
+  });
+}
+
+document.getElementById('dataInput').value=data.date;
+document.getElementById('turnoSelect').value=data.turno||'1';
+document.getElementById('dataInput').addEventListener('change',save);
+document.getElementById('turnoSelect').addEventListener('change',save);
+buildMachines();
+buildPerdas();
+showMachines();
 </script>
 </body>
 </html>
