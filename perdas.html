@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -46,7 +45,14 @@ input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,12
 .report-card:active{transform:scale(.97)}
 #reportSummary{overflow:auto;min-height:0}
 #screen-perdas .grid{overflow:auto;align-content:start;padding-bottom:4px}
-.primary-btn{width:100%;margin-top:12px;background:var(--blue);color:white;border:none;border-radius:16px;padding:15px;font-weight:600;font-size:1.05rem}
+.primary-btn{width:100%;margin-top:12px;background:var(--blue);color:white;border:none;border-radius:16px;padding:15px;font-weight:600;font-size:1.05rem;cursor:pointer}
+.sync-panel{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;font-size:.76rem;color:var(--secondary)}
+.sync-button{border:0;border-radius:9px;background:#E5F0FF;color:var(--blue);font-size:.76rem;font-weight:600;padding:7px 10px;cursor:pointer}
+.sync-status{display:inline-block;border-radius:7px;padding:3px 6px;font-size:.7rem;font-weight:600;margin-top:5px}
+.sync-pending{background:#FFF3CD;color:#856404}
+.sync-synced{background:#D4EDDA;color:#155724}
+.sync-sending{background:#DCEBFF;color:#004085}
+@media(max-height:650px){.home-header{padding:10px 12px}.content{padding:8px}.grid{gap:8px}.btn-card{min-height:65px;padding:10px 8px}.btn-perda{min-height:58px;padding:10px 6px}.underbar{padding:7px 12px 12px}.nav-bottom{padding-bottom:8px}}
 </style>
 </head>
 <body>
@@ -68,6 +74,10 @@ input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,12
         <option value="2">2° Turno</option>
         <option value="3">3° Turno</option>
       </select>
+    </div>
+    <div class="sync-panel">
+      <span id="syncSummary">Verificando sincronização...</span>
+      <button class="sync-button" onclick="syncPendingLogs()">Sincronizar agora</button>
     </div>
   </div>
 
@@ -124,308 +134,622 @@ const MACHINES = [
   {id:'SIE05A',name:'SIE05A'},{id:'SIE05B',name:'SIE05B'},
   {id:'SEI06',name:'SEI06'}
 ];
+
 const PERDAS = [
   "Escape de gás press. (Solta)","Escape de gás press. (Gaspa)",
   "Contaminação","Tamanho Menor","Excesso de Carga","Falta de Carga",
   "Peça Rasgada","Sujura Pés. Manut.","Contra Pé","Pezinho Presso",
   "Escape de Gás Aberto"
 ];
+
 const KEY = 'estrat_perdas_v3';
+
+/*
+ * Configure aqui a URL atual do gatilho HTTP do Power Automate.
+ * Não publique esta URL em repositórios públicos.
+ */
 const WEBHOOK_URL = "https://defaultb7ed67afba404040a386ab53a0ad3e.96.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/14/workflows/3f93ccf6636843d09f63309daa1400fa/triggers/manual/paths/invoke?api-version=1";
 
+function defaultData(){
+  return {
+    date: new Date().toLocaleDateString('en-CA'),
+    turno: '1',
+    configs: {},
+    logs: []
+  };
+}
+
 function loadData(){
-  try {
+  try{
     const saved = JSON.parse(localStorage.getItem(KEY));
     if(saved && typeof saved === 'object') return saved;
-  } catch(e){ console.error('Erro ao ler dados locais:',e); }
-  return {date:new Date().toISOString().slice(0,10),turno:'1',configs:{},logs:[]};
+  }catch(e){
+    console.error('Erro ao ler dados locais:', e);
+  }
+  return defaultData();
 }
-let data=loadData();
-if(!data.configs) data.configs={};
-if(!Array.isArray(data.logs)) data.logs=[];
-let currentMachine=null,currentStationIndex=1,currentEstacao=null,currentLado=null,history=[];
+
+let data = loadData();
+if(!data.configs || typeof data.configs !== 'object') data.configs = {};
+if(!Array.isArray(data.logs)) data.logs = [];
+
+/*
+ * Migração compatível: os apontamentos antigos continuam disponíveis.
+ * Apontamentos sem status de sincronização ficam como "legacy", não são
+ * reenviados automaticamente para evitar duplicatas no Excel.
+ */
+data.logs.forEach(log => {
+  if(!log.syncStatus) log.syncStatus = 'legacy';
+});
+
+let currentMachine = null;
+let currentStationIndex = 1;
+let currentEstacao = null;
+let currentLado = null;
+let history = [];
+let syncInProgress = false;
+let toastTimer = null;
 
 function save(){
-  data.date=document.getElementById('dataInput').value;
-  data.turno=document.getElementById('turnoSelect').value;
-  localStorage.setItem(KEY,JSON.stringify(data));
+  const dateInput = document.getElementById('dataInput');
+  const turnoInput = document.getElementById('turnoSelect');
+
+  if(dateInput) data.date = dateInput.value;
+  if(turnoInput) data.turno = turnoInput.value;
+
+  try{
+    localStorage.setItem(KEY, JSON.stringify(data));
+    updateSyncSummary();
+    return true;
+  }catch(e){
+    console.error('Falha ao salvar no localStorage:', e);
+    toast('Erro ao salvar localmente. Libere espaço no navegador.');
+    return false;
+  }
 }
 
 function toast(msg){
-  const el=document.getElementById('customToast');
-  el.textContent=msg;el.classList.add('show');
-  clearTimeout(window._toastTimer);
-  window._toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+  const el = document.getElementById('customToast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+function updateSyncSummary(){
+  const el = document.getElementById('syncSummary');
+  if(!el) return;
+
+  const pending = data.logs.filter(l =>
+    l.syncStatus === 'pending' || l.syncStatus === 'sending'
+  ).length;
+
+  const synced = data.logs.filter(l => l.syncStatus === 'synced').length;
+  const failed = data.logs.filter(l => l.syncStatus === 'error').length;
+
+  el.textContent = `${pending} pendente(s) • ${synced} enviado(s)` +
+    (failed ? ` • ${failed} com erro` : '');
 }
 
 function show(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  const home=id==='screen-machines';
-  document.getElementById('mainHeader').style.display=home?'block':'none';
-  document.getElementById('hotbar').style.display=home?'flex':'none';
-  document.getElementById('underbar').style.display=home?'none':'block';
+
+  const home = id === 'screen-machines';
+  document.getElementById('mainHeader').style.display = home ? 'block' : 'none';
+  document.getElementById('hotbar').style.display = home ? 'flex' : 'none';
+  document.getElementById('underbar').style.display = home ? 'none' : 'block';
 }
 
 function goBack(){
-  if(history.length>1){
+  if(history.length > 1){
     history.pop();
-    const prev=history[history.length-1];
+    const prev = history[history.length - 1];
     show(prev);
-    if(prev==='screen-stations') buildStations();
-    if(prev==='screen-config') renderConfigSlide();
-  }else showMachines();
+    if(prev === 'screen-stations') buildStations();
+    if(prev === 'screen-config') renderConfigSlide();
+  }else{
+    showMachines();
+  }
 }
+
 function pushScreen(id){
-  if(history[history.length-1]!==id) history.push(id);
+  if(history[history.length - 1] !== id) history.push(id);
   show(id);
 }
+
 function showMachines(){
-  history=['screen-machines'];show('screen-machines');
-  document.getElementById('headerInfo').textContent='Selecione a máquina';
-  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
-  currentMachine=null;
+  history = ['screen-machines'];
+  show('screen-machines');
+  document.getElementById('headerInfo').textContent = 'Selecione a máquina';
+  document.querySelectorAll('.nav-btn').forEach((b,i) => b.classList.toggle('active',i===0));
+  currentMachine = null;
 }
+
 function showConfig(){
   pushScreen('screen-config');
-  document.getElementById('configMachineName').textContent=currentMachine.name;
+  document.getElementById('configMachineName').textContent = currentMachine.name;
   renderConfigSlide();
 }
+
 function showStations(){
-  if(!currentMachine)return showMachines();
-  if(history[history.length-1]!=='screen-stations')history=['screen-machines','screen-stations'];
+  if(!currentMachine) return showMachines();
+  if(history[history.length - 1] !== 'screen-stations'){
+    history = ['screen-machines','screen-stations'];
+  }
   show('screen-stations');
-  document.getElementById('stationsMachine').textContent=currentMachine.name;
+  document.getElementById('stationsMachine').textContent = currentMachine.name;
   buildStations();
 }
+
 function showSides(){
   pushScreen('screen-sides');
-  const cfg=getStationCfg(currentEstacao);
-  document.getElementById('sideTitle').textContent='Estação '+String(currentEstacao).padStart(2,'0');
-  document.getElementById('sideInfo').textContent=cfg.same
-    ?`Nº ${cfg.num||'—'} • Ref. ${cfg.ref||'—'}`
-    :`Esq ${cfg.numEsq||'—'}/${cfg.refEsq||'—'} • Dir ${cfg.numDir||'—'}/${cfg.refDir||'—'}`;
+  const cfg = getStationCfg(currentEstacao);
+  document.getElementById('sideTitle').textContent =
+    'Estação ' + String(currentEstacao).padStart(2,'0');
+
+  document.getElementById('sideInfo').textContent = cfg.same
+    ? `Nº ${cfg.num || '—'} • Ref. ${cfg.ref || '—'}`
+    : `Esq ${cfg.numEsq || '—'}/${cfg.refEsq || '—'} • Dir ${cfg.numDir || '—'}/${cfg.refDir || '—'}`;
 }
+
 function showPerdas(){
   pushScreen('screen-perdas');
-  document.getElementById('perdaInfo').textContent=`Estação ${currentEstacao} • Lado ${currentLado==='Esq'?'Esquerdo':'Direito'}`;
+  document.getElementById('perdaInfo').textContent =
+    `Estação ${currentEstacao} • Lado ${currentLado === 'Esq' ? 'Esquerdo' : 'Direito'}`;
 }
+
 function showReport(){
   pushScreen('screen-report');
-  document.querySelectorAll('.nav-btn').forEach((b,i)=>b.classList.toggle('active',i===1));
-  const todayLogs=data.logs.filter(l=>l.date===data.date&&l.turno===data.turno);
-  const turnoLabel={'1':'1° Turno','2':'2° Turno','3':'3° Turno'}[data.turno]||data.turno;
-  document.getElementById('reportSubtitle').textContent=`${data.date.split('-').reverse().join('/')} • ${turnoLabel}`;
-  const container=document.getElementById('reportSummary');
+  document.querySelectorAll('.nav-btn').forEach((b,i) => b.classList.toggle('active',i===1));
+
+  const todayLogs = data.logs.filter(l =>
+    l.date === data.date && String(l.turno) === String(data.turno)
+  );
+
+  const turnoLabel = {'1':'1° Turno','2':'2° Turno','3':'3° Turno'}[data.turno] || data.turno;
+  document.getElementById('reportSubtitle').textContent =
+    `${data.date.split('-').reverse().join('/')} • ${turnoLabel}`;
+
+  const container = document.getElementById('reportSummary');
+
   if(!todayLogs.length){
-    container.innerHTML='<div style="text-align:center;color:var(--secondary);padding:40px 0">Nenhum apontamento neste turno</div>';
+    container.innerHTML = '<div style="text-align:center;color:var(--secondary);padding:40px 0">Nenhum apontamento neste turno</div>';
     return;
   }
-  const byMachine={};
-  todayLogs.forEach(l=>{
-    if(!byMachine[l.machine])byMachine[l.machine]={};
-    if(!byMachine[l.machine][l.estacao])byMachine[l.machine][l.estacao]={};
-    if(!byMachine[l.machine][l.estacao][l.lado])
-      byMachine[l.machine][l.estacao][l.lado]={num:l.num,ref:l.ref,perdas:{}};
-    const p=byMachine[l.machine][l.estacao][l.lado].perdas;
-    p[l.perda]=(p[l.perda]||0)+1;
-  });
-  let html='<div class="grid grid-2" style="flex:none">';
-  Object.keys(byMachine).sort().forEach(maq=>{
-    const total=todayLogs.filter(l=>l.machine===maq).length;
-    html+=`<div class="report-card" onclick="toggleMachine('${maq}')"><div style="font-weight:600">${maq}</div><div style="color:var(--secondary);font-size:.8rem">${total} apontamento(s)</div></div>`;
-  });
-  html+='</div><div id="machineDetails" style="margin-top:10px"></div>';
-  container.innerHTML=html;
 
-  window.toggleMachine=function(maq){
-    const d=document.getElementById('machineDetails');
-    if(d.dataset.open===maq){d.innerHTML='';d.dataset.open='';return;}
-    d.dataset.open=maq;
-    const stations=byMachine[maq];
-    let h=`<div style="font-weight:600;margin-bottom:6px">${maq}</div><div class="grid grid-2" style="flex:none">`;
-    Object.keys(stations).sort((a,b)=>a-b).forEach(est=>{
-      h+=`<div class="report-card" onclick="toggleStation('${maq}',${est})"><div style="font-weight:600">Est. ${String(est).padStart(2,'0')}</div></div>`;
+  const byMachine = {};
+
+  todayLogs.forEach(l => {
+    if(!byMachine[l.machine]) byMachine[l.machine] = {};
+    if(!byMachine[l.machine][l.estacao]) byMachine[l.machine][l.estacao] = {};
+
+    if(!byMachine[l.machine][l.estacao][l.lado]){
+      byMachine[l.machine][l.estacao][l.lado] = {
+        num:l.num, ref:l.ref, perdas:{}, logs:[]
+      };
+    }
+
+    const side = byMachine[l.machine][l.estacao][l.lado];
+    side.perdas[l.perda] = (side.perdas[l.perda] || 0) + 1;
+    side.logs.push(l);
+  });
+
+  let html = '<div class="grid grid-2" style="flex:none">';
+
+  Object.keys(byMachine).sort().forEach(maq => {
+    const machineLogs = todayLogs.filter(l => l.machine === maq);
+    html += `<div class="report-card" onclick="toggleMachine('${escapeHtml(maq)}')">
+      <div style="font-weight:600">${escapeHtml(maq)}</div>
+      <div style="color:var(--secondary);font-size:.8rem">${machineLogs.length} apontamento(s)</div>
+    </div>`;
+  });
+
+  html += '</div><div id="machineDetails" style="margin-top:10px"></div>';
+  container.innerHTML = html;
+
+  window.toggleMachine = function(maq){
+    const d = document.getElementById('machineDetails');
+    if(d.dataset.open === maq){
+      d.innerHTML = '';
+      d.dataset.open = '';
+      return;
+    }
+
+    d.dataset.open = maq;
+    const stations = byMachine[maq];
+    let h = `<div style="font-weight:600;margin-bottom:6px">${escapeHtml(maq)}</div><div class="grid grid-2" style="flex:none">`;
+
+    Object.keys(stations).sort((a,b) => Number(a)-Number(b)).forEach(est => {
+      h += `<div class="report-card" onclick="toggleStation('${escapeHtml(maq)}',${Number(est)})">
+        <div style="font-weight:600">Est. ${String(est).padStart(2,'0')}</div>
+      </div>`;
     });
-    h+='</div><div id="stationDetails" style="margin-top:8px"></div>';
-    d.innerHTML=h;
-    window.toggleStation=function(machine,est){
-      const sd=document.getElementById('stationDetails');
-      if(sd.dataset.open===String(est)){sd.innerHTML='';sd.dataset.open='';return;}
-      sd.dataset.open=String(est);
-      let sh='';
-      ['Esq','Dir'].forEach(lado=>{
-        const info=stations[est][lado];
-        if(!info)return;
-        const perdas=Object.entries(info.perdas).map(([p,c])=>
-          `<div style="font-size:.84rem;margin-top:3px">${c}× ${escapeHtml(p)}</div>`).join('');
-        sh+=`<div class="report-card" style="text-align:left;margin-bottom:8px;cursor:default"><div style="font-weight:600">${lado==='Esq'?'Esquerdo':'Direito'}</div><div style="color:var(--secondary);font-size:.8rem">Nº ${escapeHtml(info.num||'—')} • Ref. ${escapeHtml(info.ref||'—')}</div>${perdas}</div>`;
+
+    h += '</div><div id="stationDetails" style="margin-top:8px"></div>';
+    d.innerHTML = h;
+
+    window.toggleStation = function(machine, est){
+      const sd = document.getElementById('stationDetails');
+      if(sd.dataset.open === String(est)){
+        sd.innerHTML = '';
+        sd.dataset.open = '';
+        return;
+      }
+
+      sd.dataset.open = String(est);
+      let sh = '';
+
+      ['Esq','Dir'].forEach(lado => {
+        const info = stations[est][lado];
+        if(!info) return;
+
+        const perdas = Object.entries(info.perdas).map(([p,c]) =>
+          `<div style="font-size:.84rem;margin-top:3px">${c}× ${escapeHtml(p)}</div>`
+        ).join('');
+
+        const statuses = info.logs.map(log => {
+          let label = 'Antigo / sem status';
+          let cls = 'sync-pending';
+
+          if(log.syncStatus === 'synced'){
+            label = 'Enviado';
+            cls = 'sync-synced';
+          }else if(log.syncStatus === 'sending'){
+            label = 'Enviando';
+            cls = 'sync-sending';
+          }else if(log.syncStatus === 'pending' || log.syncStatus === 'error'){
+            label = log.syncStatus === 'error' ? 'Erro no envio' : 'Pendente';
+            cls = 'sync-pending';
+          }
+
+          return `<span class="sync-status ${cls}">${label}</span>`;
+        }).join(' ');
+
+        sh += `<div class="report-card" style="text-align:left;margin-bottom:8px;cursor:default">
+          <div style="font-weight:600">${lado === 'Esq' ? 'Esquerdo' : 'Direito'}</div>
+          <div style="color:var(--secondary);font-size:.8rem">Nº ${escapeHtml(info.num || '—')} • Ref. ${escapeHtml(info.ref || '—')}</div>
+          ${perdas}
+          <div style="margin-top:6px">${statuses}</div>
+        </div>`;
       });
-      sd.innerHTML=sh||'<div style="color:var(--secondary);font-size:.85rem">Sem dados</div>';
+
+      sd.innerHTML = sh || '<div style="color:var(--secondary);font-size:.85rem">Sem dados</div>';
     };
   };
 }
+
 function escapeHtml(v){
-  return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return String(v ?? '').replace(/[&<>"']/g,c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
 }
+
 function selectMachine(m){
-  currentMachine=m;
-  if(!data.configs[m.id])data.configs[m.id]={configured:false,stations:{}};
+  currentMachine = m;
+  if(!data.configs[m.id]) data.configs[m.id] = {configured:false,stations:{}};
   save();
-  if(data.configs[m.id].configured)showStations();
-  else{currentStationIndex=1;showConfig();}
+
+  if(data.configs[m.id].configured){
+    showStations();
+  }else{
+    currentStationIndex = 1;
+    showConfig();
+  }
 }
+
 function getStationCfg(est){
-  if(!data.configs[currentMachine.id].stations[est])
-    data.configs[currentMachine.id].stations[est]={same:true,num:'',ref:'',numEsq:'',refEsq:'',numDir:'',refDir:''};
+  if(!data.configs[currentMachine.id].stations[est]){
+    data.configs[currentMachine.id].stations[est] = {
+      same:true,num:'',ref:'',numEsq:'',refEsq:'',numDir:'',refDir:''
+    };
+  }
   return data.configs[currentMachine.id].stations[est];
 }
+
 function renderConfigSlide(){
-  const est=currentStationIndex,cfg=getStationCfg(est);
-  document.getElementById('configProgress').style.width=(est/8*100)+'%';
-  document.getElementById('configSlide').innerHTML=`
-    <div style="text-align:center;margin-bottom:16px"><div style="font-size:2.6rem;font-weight:600;color:var(--blue)">${String(est).padStart(2,'0')}</div><div style="color:var(--secondary)">Estação</div></div>
-    <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><input type="checkbox" id="sameSwitch" ${cfg.same?'checked':''} onchange="toggleSame()" style="width:auto"><span>Mesmo número e referência nos dois lados</span></label>
-    <div id="fieldsSame" style="${cfg.same?'':'display:none'}">
-      <div style="margin-bottom:12px"><div style="font-size:.8rem;color:var(--secondary);margin-bottom:4px">Número</div><input id="num" value="${escapeHtml(cfg.num||'')}" placeholder="Ex: 36"></div>
-      <div><div style="font-size:.8rem;color:var(--secondary);margin-bottom:4px">Referência</div><input id="ref" value="${escapeHtml(cfg.ref||'')}" placeholder="Ex: 3"></div>
+  const est = currentStationIndex;
+  const cfg = getStationCfg(est);
+
+  document.getElementById('configProgress').style.width = (est/8*100)+'%';
+
+  document.getElementById('configSlide').innerHTML = `
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:2.6rem;font-weight:600;color:var(--blue)">${String(est).padStart(2,'0')}</div>
+      <div style="color:var(--secondary)">Estação</div>
     </div>
-    <div id="fieldsSeparate" style="${cfg.same?'display:none':''}"><div class="grid grid-2">
-      <div><div style="font-size:.8rem;color:var(--secondary)">Nº Esq</div><input id="numEsq" value="${escapeHtml(cfg.numEsq||'')}"></div>
-      <div><div style="font-size:.8rem;color:var(--secondary)">Ref. Esq</div><input id="refEsq" value="${escapeHtml(cfg.refEsq||'')}"></div>
-      <div><div style="font-size:.8rem;color:var(--secondary)">Nº Dir</div><input id="numDir" value="${escapeHtml(cfg.numDir||'')}"></div>
-      <div><div style="font-size:.8rem;color:var(--secondary)">Ref. Dir</div><input id="refDir" value="${escapeHtml(cfg.refDir||'')}"></div>
-    </div></div>`;
-  document.getElementById('btnSaveConfig').textContent=est===8?'Salvar e Começar':'Salvar e Próxima';
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <input type="checkbox" id="sameSwitch" ${cfg.same?'checked':''} onchange="toggleSame()" style="width:auto">
+      <span>Mesmo número e referência nos dois lados</span>
+    </label>
+    <div id="fieldsSame" style="${cfg.same?'':'display:none'}">
+      <div style="margin-bottom:12px">
+        <div style="font-size:.8rem;color:var(--secondary);margin-bottom:4px">Número</div>
+        <input id="num" value="${escapeHtml(cfg.num||'')}" placeholder="Ex: 36">
+      </div>
+      <div>
+        <div style="font-size:.8rem;color:var(--secondary);margin-bottom:4px">Referência</div>
+        <input id="ref" value="${escapeHtml(cfg.ref||'')}" placeholder="Ex: 3">
+      </div>
+    </div>
+    <div id="fieldsSeparate" style="${cfg.same?'display:none':''}">
+      <div class="grid grid-2">
+        <div><div style="font-size:.8rem;color:var(--secondary)">Nº Esq</div><input id="numEsq" value="${escapeHtml(cfg.numEsq||'')}"></div>
+        <div><div style="font-size:.8rem;color:var(--secondary)">Ref. Esq</div><input id="refEsq" value="${escapeHtml(cfg.refEsq||'')}"></div>
+        <div><div style="font-size:.8rem;color:var(--secondary)">Nº Dir</div><input id="numDir" value="${escapeHtml(cfg.numDir||'')}"></div>
+        <div><div style="font-size:.8rem;color:var(--secondary)">Ref. Dir</div><input id="refDir" value="${escapeHtml(cfg.refDir||'')}"></div>
+      </div>
+    </div>`;
+
+  document.getElementById('btnSaveConfig').textContent =
+    est === 8 ? 'Salvar e Começar' : 'Salvar e Próxima';
 }
+
 function toggleSame(){
-  const same=document.getElementById('sameSwitch').checked;
-  document.getElementById('fieldsSame').style.display=same?'block':'none';
-  document.getElementById('fieldsSeparate').style.display=same?'none':'block';
+  const same = document.getElementById('sameSwitch').checked;
+  document.getElementById('fieldsSame').style.display = same ? 'block' : 'none';
+  document.getElementById('fieldsSeparate').style.display = same ? 'none' : 'block';
 }
+
 function saveCurrentStation(){
-  const est=currentStationIndex,cfg=getStationCfg(est);
-  cfg.same=document.getElementById('sameSwitch').checked;
+  const est = currentStationIndex;
+  const cfg = getStationCfg(est);
+  cfg.same = document.getElementById('sameSwitch').checked;
+
   if(cfg.same){
-    cfg.num=document.getElementById('num').value.trim();
-    cfg.ref=document.getElementById('ref').value.trim();
+    cfg.num = document.getElementById('num').value.trim();
+    cfg.ref = document.getElementById('ref').value.trim();
   }else{
-    cfg.numEsq=document.getElementById('numEsq').value.trim();
-    cfg.refEsq=document.getElementById('refEsq').value.trim();
-    cfg.numDir=document.getElementById('numDir').value.trim();
-    cfg.refDir=document.getElementById('refDir').value.trim();
+    cfg.numEsq = document.getElementById('numEsq').value.trim();
+    cfg.refEsq = document.getElementById('refEsq').value.trim();
+    cfg.numDir = document.getElementById('numDir').value.trim();
+    cfg.refDir = document.getElementById('refDir').value.trim();
   }
-  save();
-  if(currentStationIndex<8){currentStationIndex++;renderConfigSlide();}
-  else{
-    data.configs[currentMachine.id].configured=true;
-    save();toast('Configuração concluída');showStations();
+
+  if(!save()) return;
+
+  if(currentStationIndex < 8){
+    currentStationIndex++;
+    renderConfigSlide();
+  }else{
+    data.configs[currentMachine.id].configured = true;
+    if(!save()) return;
+    toast('Configuração concluída');
+    showStations();
   }
 }
+
 function reconfigure(){
   if(confirm('Reconfigurar números e referências?')){
-    data.configs[currentMachine.id].configured=false;
-    currentStationIndex=1;save();showConfig();
+    data.configs[currentMachine.id].configured = false;
+    currentStationIndex = 1;
+    save();
+    showConfig();
   }
 }
-function selectStation(n){currentEstacao=n;showSides();}
-function selectSide(lado){currentLado=lado;showPerdas();}
+
+function selectStation(n){
+  currentEstacao = n;
+  showSides();
+}
+
+function selectSide(lado){
+  currentLado = lado;
+  showPerdas();
+}
+
+function createId(){
+  if(typeof crypto !== 'undefined' && crypto.randomUUID){
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+}
 
 /*
- * Envia o apontamento como texto JSON para testar o gatilho HTTP.
- * text/plain evita o preflight CORS causado pelo Content-Type application/json.
- * O fluxo precisa interpretar o corpo como JSON antes de inserir na tabela.
+ * Envio para o Power Automate.
+ * Uma resposta HTTP de sucesso significa que o endpoint respondeu com 2xx;
+ * não garante, por si só, que a linha foi gravada no Excel.
  */
-async function sendWebhook(log){
+async function sendWebhook(log, silent = false){
+  const registro = data.logs.find(item => item.id === log.id);
+  if(!registro || registro.syncStatus === 'synced') return;
+
+  registro.syncStatus = 'sending';
+  registro.syncAttempts = (registro.syncAttempts || 0) + 1;
+  registro.lastSyncAttempt = new Date().toISOString();
+
+  if(!save()){
+    registro.syncStatus = 'pending';
+    return;
+  }
+
   try{
-    const resposta=await fetch(WEBHOOK_URL,{
+    const response = await fetch(WEBHOOK_URL,{
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=UTF-8'},
       body:JSON.stringify(log)
     });
-    const texto=await resposta.text();
-    console.info('Webhook HTTP:',resposta.status,'Resposta:',texto);
-    if(!resposta.ok){
-      console.error('O Power Automate respondeu com erro HTTP',resposta.status);
-      toast('Erro HTTP '+resposta.status+' no envio');
-      return {ok:false,status:resposta.status};
+
+    const responseText = await response.text().catch(() => '');
+
+    console.info('Resposta do Power Automate:', {
+      status:response.status,
+      ok:response.ok,
+      body:responseText
+    });
+
+    if(!response.ok){
+      throw new Error(`HTTP ${response.status}: ${responseText}`);
     }
-    toast('Apontamento enviado');
-    return {ok:true,status:resposta.status};
-  }catch(erro){
-    console.error('Falha no webhook:',erro);
-    toast('Falha no envio. Verifique o console');
-    return {ok:false,error:String(erro)};
+
+    registro.syncStatus = 'synced';
+    registro.syncedAt = new Date().toISOString();
+    delete registro.syncError;
+
+    save();
+    console.info('Endpoint respondeu com sucesso para o apontamento:', log.id);
+
+    if(!silent) toast('Endpoint respondeu. Confira o fluxo e o Excel.');
+  }catch(error){
+    registro.syncStatus = 'pending';
+    registro.syncError = String(error);
+    registro.lastSyncErrorAt = new Date().toISOString();
+
+    save();
+    console.error('Envio não confirmado:', log.id, error);
+
+    if(!silent) toast('Salvo localmente. Sincronização pendente.');
+  }
+}
+
+/*
+ * Fila de sincronização:
+ * - envia apenas registros novos que estão pendentes;
+ * - não reenvia registros antigos sem status;
+ * - evita duas filas simultâneas nesta aba.
+ */
+async function syncPendingLogs(){
+  if(syncInProgress || !navigator.onLine) return;
+
+  syncInProgress = true;
+
+  try{
+    const pending = data.logs.filter(log => log.syncStatus === 'pending');
+
+    for(const log of pending){
+      if(!navigator.onLine) break;
+      await sendWebhook(log, true);
+      await new Promise(resolve => setTimeout(resolve, 700));
+    }
+  }finally{
+    syncInProgress = false;
+    updateSyncSummary();
   }
 }
 
 function selectPerda(perda){
-  const cfg=getStationCfg(currentEstacao);
-  let num='',ref='';
-  if(cfg.same){num=cfg.num;ref=cfg.ref;}
-  else if(currentLado==='Esq'){num=cfg.numEsq;ref=cfg.refEsq;}
-  else{num=cfg.numDir;ref=cfg.refDir;}
+  if(!currentMachine || currentEstacao == null || !currentLado){
+    toast('Selecione máquina, estação e lado.');
+    return;
+  }
 
-  const log={
-    id:typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2),
+  const cfg = getStationCfg(currentEstacao);
+  let num = '';
+  let ref = '';
+
+  if(cfg.same){
+    num = cfg.num;
+    ref = cfg.ref;
+  }else if(currentLado === 'Esq'){
+    num = cfg.numEsq;
+    ref = cfg.refEsq;
+  }else{
+    num = cfg.numDir;
+    ref = cfg.refDir;
+  }
+
+  const log = {
+    id:createId(),
     machine:currentMachine.id,
     estacao:currentEstacao,
     lado:currentLado,
     perda,
-    num,ref,
+    num,
+    ref,
     time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
     timestamp:new Date().toISOString(),
     date:data.date,
-    turno:data.turno
+    turno:String(data.turno),
+    syncStatus:'pending',
+    syncAttempts:0
   };
 
   data.logs.push(log);
-  save();
+
+  if(!save()){
+    data.logs = data.logs.filter(item => item.id !== log.id);
+    return;
+  }
+
   toast('Apontamento salvo localmente');
 
-  // Envio independente do armazenamento local.
+  // A função cuida do estado e das falhas de sincronização.
   sendWebhook(log);
 
-  setTimeout(()=>{
-    history=['screen-machines','screen-stations'];
+  setTimeout(() => {
+    history = ['screen-machines','screen-stations'];
     showStations();
   },260);
 }
 
 function buildMachines(){
-  document.getElementById('machinesGrid').innerHTML=MACHINES.map(m=>
+  document.getElementById('machinesGrid').innerHTML = MACHINES.map(m =>
     `<button class="btn-card" onclick="selectMachineById('${m.id}')"><div style="font-weight:600">${m.name}</div></button>`
   ).join('');
 }
+
 function selectMachineById(id){
-  const m=MACHINES.find(x=>x.id===id);
-  if(m)selectMachine(m);
+  const m = MACHINES.find(x => x.id === id);
+  if(m) selectMachine(m);
 }
+
 function buildStations(){
-  let h='';
+  let html = '';
+
   for(let i=1;i<=8;i++){
-    const cfg=getStationCfg(i);
-    const label=cfg.same?`${cfg.num||'—'} / ${cfg.ref||'—'}`:`E ${cfg.numEsq||'—'} · D ${cfg.numDir||'—'}`;
-    h+=`<button class="btn-card btn-station" onclick="selectStation(${i})"><div style="font-size:.72rem;color:var(--secondary)">Estação</div><div style="font-weight:600;font-size:1.35rem">${String(i).padStart(2,'0')}</div><div style="font-size:.72rem;color:var(--secondary)">${escapeHtml(label)}</div></button>`;
+    const cfg = getStationCfg(i);
+    const label = cfg.same
+      ? `${cfg.num||'—'} / ${cfg.ref||'—'}`
+      : `E ${cfg.numEsq||'—'} · D ${cfg.numDir||'—'}`;
+
+    html += `<button class="btn-card btn-station" onclick="selectStation(${i})">
+      <div style="font-size:.72rem;color:var(--secondary)">Estação</div>
+      <div style="font-weight:600;font-size:1.35rem">${String(i).padStart(2,'0')}</div>
+      <div style="font-size:.72rem;color:var(--secondary)">${escapeHtml(label)}</div>
+    </button>`;
   }
-  document.getElementById('stationsGrid').innerHTML=h;
+
+  document.getElementById('stationsGrid').innerHTML = html;
 }
+
 function buildPerdas(){
-  document.getElementById('perdasGrid').innerHTML=PERDAS.map(p=>
+  document.getElementById('perdasGrid').innerHTML = PERDAS.map(p =>
     `<button class="btn-perda" data-perda="${escapeHtml(p)}">${escapeHtml(p)}</button>`
   ).join('');
-  document.getElementById('perdasGrid').querySelectorAll('button').forEach(btn=>{
-    btn.addEventListener('click',()=>selectPerda(btn.dataset.perda));
+
+  document.getElementById('perdasGrid').querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click',() => selectPerda(btn.dataset.perda));
   });
 }
 
-document.getElementById('dataInput').value=data.date;
-document.getElementById('turnoSelect').value=data.turno||'1';
-document.getElementById('dataInput').addEventListener('change',save);
-document.getElementById('turnoSelect').addEventListener('change',save);
+/* Inicialização */
+document.getElementById('dataInput').value = data.date;
+document.getElementById('turnoSelect').value = String(data.turno || '1');
+
+document.getElementById('dataInput').addEventListener('change',() => {
+  save();
+  if(document.getElementById('screen-report').classList.contains('active')) showReport();
+});
+
+document.getElementById('turnoSelect').addEventListener('change',() => {
+  save();
+  if(document.getElementById('screen-report').classList.contains('active')) showReport();
+});
+
 buildMachines();
 buildPerdas();
 showMachines();
+updateSyncSummary();
+
+// Reenvia pendências ao recuperar a conexão e enquanto o app estiver aberto.
+window.addEventListener('online',syncPendingLogs);
+window.addEventListener('focus',syncPendingLogs);
+document.addEventListener('visibilitychange',() => {
+  if(!document.hidden) syncPendingLogs();
+});
+
+setInterval(syncPendingLogs,30000);
+setTimeout(syncPendingLogs,1500);
 </script>
 </body>
 </html>
