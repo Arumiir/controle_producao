@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#eceff2">
+<title>Acompanhamento de Horas</title>
+<style>
+:root{color-scheme:light;--bg:#eceff2;--surface:#fff;--sunk:#f4f6f8;--line:#dde2e8;--ink:#15212c;--muted:#66727f;--brand:#0e7c86;--brand-d:#0a5f68;--brand-soft:#dff3f4;--ok:#1f9d63;--ok-soft:#e1f6ec;--warn:#b86a08;--warn-soft:#fff3df;--warn-line:#f0d29a;--danger:#d64545;--shadow:0 1px 2px rgba(21,33,44,.06),0 6px 18px rgba(21,33,44,.06);--r:16px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45;overflow:hidden;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.ic{width:1.15em;height:1.15em;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.app{position:fixed;inset:0;overflow:hidden}
+.screen{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:var(--bg);transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.screen.hidden{transform:translateX(100%);pointer-events:none;visibility:hidden;transition:transform .3s cubic-bezier(.4,0,.2,1),visibility 0s .3s}
+.screen.back{transform:translateX(-24%);opacity:0;pointer-events:none}
+.wrap{width:100%;max-width:1040px;margin:0 auto;padding:clamp(.6rem,2.5vw,1.5rem) clamp(.9rem,3vw,1.5rem) clamp(.8rem,2.5vw,1.25rem)}
+.hero{margin-bottom:.75rem;padding:0}
+.hero h1{font-size:clamp(1.4rem,4.5vw,2rem);font-weight:800;letter-spacing:-.02em;line-height:1.15;color:var(--ink)}
+.hero p{color:var(--muted);font-size:.9rem;margin-top:.25rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,10.5rem),1fr));gap:.75rem}
+.mcard{display:flex;flex-direction:column;gap:.15rem;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:.9rem;box-shadow:var(--shadow);transition:transform .15s,border-color .15s;min-width:0}
+.mcard:hover{border-color:var(--brand)}
+.mcard:active{transform:scale(.97)}
+.mcard .top{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.45rem}
+.mcard .name{font-weight:750;font-size:1.02rem}
+.mcard .badge{display:grid;place-items:center;width:2rem;height:2rem;border-radius:10px;background:var(--brand-soft);color:var(--brand)}
+.mcard small{font-size:.72rem;color:var(--muted);font-weight:600}
+.mcard .hours{font-size:1.65rem;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;line-height:1.15}
+.mcard .hours+small{margin-top:.6rem}.mcard small+.chip{margin-top:.25rem}
+.chip{display:inline-flex;align-items:center;gap:.35rem;margin-top:.55rem;padding:.3rem .55rem;border-radius:999px;font-size:.74rem;font-weight:700;background:var(--sunk);color:var(--muted);max-width:100%}
+.chip.late{background:var(--warn-soft);color:var(--warn)}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:.6rem;padding:.35rem 0;margin:0 0 .4rem;background:var(--bg)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;min-height:2.9rem;padding:.7rem 1.1rem;border-radius:13px;background:var(--brand);color:#fff;font-weight:700;font-size:.97rem;transition:transform .12s,background .15s;white-space:nowrap}
+.btn:hover{background:var(--brand-d)}
+.btn:active{transform:scale(.97)}
+.btn.block{width:100%}
+.btn.ghost{background:var(--surface);color:var(--ink);border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--brand);background:var(--surface)}
+.btn.danger{background:transparent;color:var(--danger);border:1.5px solid color-mix(in srgb,var(--danger) 45%,transparent)}
+.btn.danger:hover{background:color-mix(in srgb,var(--danger) 10%,transparent)}
+.btn.sm{min-height:2.4rem;padding:.45rem .8rem;font-size:.85rem;border-radius:11px}
+.btn.back{min-height:2.5rem;padding:.4rem .85rem .4rem .6rem;color:var(--brand);font-size:.9rem}
+h2.title{font-size:clamp(1.3rem,4vw,1.7rem);font-weight:800;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:.85rem}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:1rem;box-shadow:var(--shadow)}
+label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:.35rem;font-weight:650}
+input{width:100%;min-height:2.9rem;padding:.65rem .85rem;background:var(--sunk);border:1.5px solid var(--line);border-radius:12px;font-size:1rem;outline:none;transition:border-color .15s,background .15s}
+input:focus{border-color:var(--brand);background:var(--surface)}
+.saldo{display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-end;margin:.6rem 0 .8rem}
+.saldo>div{flex:1 1 11rem}
+.cols{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,18rem),1fr));align-items:start}
+.pcard{display:flex;flex-direction:column;gap:.5rem;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:1rem;box-shadow:var(--shadow);transition:transform .15s,border-color .15s}
+.pcard:hover{border-color:var(--brand)}
+.pcard:active{transform:scale(.985)}
+.pcard .row{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem}
+.pcard .name{font-weight:750;font-size:1.08rem;overflow-wrap:anywhere}
+.pcard .hours{font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums;font-size:1.1rem}
+.status{display:inline-flex;align-items:center;gap:.3rem;align-self:flex-start;font-size:.74rem;font-weight:700;padding:.22rem .55rem;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
+.status.done{background:var(--ok-soft);color:var(--ok)}
+.add{margin-top:.8rem;display:grid;gap:.6rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr))}
+.empty{display:flex;flex-direction:column;align-items:center;gap:.4rem;text-align:center;color:var(--muted);padding:2.2rem 1rem;font-size:.92rem;border:1.5px dashed var(--line);border-radius:var(--r);grid-column:1/-1}
+.empty .ic{width:2rem;height:2rem;opacity:.6}
+.phead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:.75rem;margin-bottom:.9rem}
+.holding{display:flex;align-items:center;gap:.8rem;margin-top:0;background:var(--warn-soft);border:1.5px solid var(--warn-line);color:var(--warn);border-radius:var(--r);padding:.85rem 1rem;margin-bottom:.8rem}
+.holding.idle{background:var(--sunk);border-color:var(--line);color:var(--muted)}
+.holding .ic{width:1.6rem;height:1.6rem}
+.holding small{display:block;font-size:.74rem;font-weight:650;opacity:.9}
+.holding b{font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums}
+.nblock{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden}
+.nhead{display:flex;align-items:center;gap:.7rem;width:100%;padding:.9rem 1rem;text-align:left}
+.nhead .num{font-weight:750;flex:1;min-width:0}
+.nhead .num small{display:block;color:var(--muted);font-weight:600;font-size:.74rem}
+.nhead .rest{font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}
+.nhead .chev{color:var(--muted);transition:transform .25s}
+.nblock.open .chev{transform:rotate(180deg)}
+.prog{height:5px;background:var(--sunk);margin:0 1rem;border-radius:9px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--ok);border-radius:9px;transition:width .3s}
+.det{display:grid;grid-template-rows:0fr;transition:grid-template-rows .28s ease}
+.nblock.open .det{grid-template-rows:1fr}
+.det>div{overflow:hidden;min-height:0}
+.det .in{padding:.8rem 1rem 1rem}
+.boxes{display:grid;grid-template-columns:repeat(auto-fill,minmax(3.3rem,1fr));gap:.45rem;margin:.6rem 0 .8rem}
+.box{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:3.2rem;background:var(--sunk);border:1.5px solid var(--line);border-radius:12px;font-weight:700;font-size:.85rem;user-select:none;transition:background .15s,border-color .15s,transform .1s}
+.box:active{transform:scale(.93)}
+.box .p{font-size:.64rem;color:var(--muted);font-weight:600}
+.box.on{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.box.on .p{color:var(--ok)}
+.acts{display:flex;flex-wrap:wrap;gap:.5rem}
+.modal{position:fixed;inset:0;z-index:100;display:flex;align-items:flex-end;justify-content:center;background:rgba(8,14,20,.55);backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:opacity .2s,visibility 0s .2s}
+.modal.show{opacity:1;visibility:visible;transition:opacity .2s}
+.sheet{width:100%;max-width:30rem;max-height:92dvh;overflow-y:auto;background:var(--surface);border-radius:22px 22px 0 0;padding:1.3rem 1.2rem calc(1.3rem + env(safe-area-inset-bottom));transform:translateY(30px);transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.modal.show .sheet{transform:none}
+.sheet h3{font-size:1.2rem;font-weight:800;margin-bottom:1rem}
+.field{margin-bottom:.8rem}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.sheet .acts{margin-top:1.1rem}
+.sheet .acts .btn{flex:1}
+@media(min-width:640px){.modal{align-items:center;padding:1rem}.sheet{border-radius:22px;transform:scale(.96)}}
+#screen-home .wrap{min-height:100%;display:flex;flex-direction:column}
+#screen-home .grid{flex:1;max-height:42rem;grid-template-columns:repeat(2,1fr);grid-auto-rows:minmax(min-content,1fr)}
+.mcard{justify-content:center}
+@media(min-width:600px){#screen-home .grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-height:720px){.mcard{padding:.6rem .8rem}.mcard .top{margin-bottom:.15rem}.mcard .hours{font-size:1.4rem}.mcard .hours+small{margin-top:.35rem}.chip{padding:.2rem .5rem}.hero p{display:none}}
+@media(max-width:360px){.two{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="i-back" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></symbol>
+<symbol id="i-cog" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="9" rx="2"/><path d="M7 8V5h6v3M17 17v3M7 17v3M7 12.5h.01M11 12.5h6"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol>
+</svg>
+
+<div class="app">
+  <main class="screen" id="screen-home"><div class="wrap">
+    <section class="hero">
+      <h1>Acompanhamento de Horas</h1><p>Máquinas 01 a 06</p>
+    </section>
+    <div class="grid" id="maquinasList"></div>
+  </div></main>
+
+  <section class="screen hidden" id="screen-maquina"><div class="wrap">
+    <div class="bar"><button class="btn ghost back" id="btnVoltarMaq"><svg class="ic"><use href="#i-back"/></svg>Máquinas</button></div>
+    <div id="maquinaContent"></div>
+  </div></section>
+
+  <section class="screen hidden" id="screen-programa"><div class="wrap">
+    <div class="bar"><button class="btn ghost back" id="btnVoltarProg"><svg class="ic"><use href="#i-back"/></svg>Programas</button></div>
+    <div id="programaContent"></div>
+  </div></section>
+</div>
+
+<div class="modal" id="modalPrograma" role="dialog" aria-modal="true" aria-labelledby="modalProgTitle">
+  <div class="sheet">
+    <h3 id="modalProgTitle">Novo programa</h3>
+    <div class="field"><label for="progNome">Código do programa</label><input id="progNome" placeholder="Ex: 336027" autocomplete="off"></div>
+    <div class="field"><label for="progDoc">Documento</label><input id="progDoc" placeholder="Ex: 28" autocomplete="off"></div>
+    <div class="acts"><button class="btn ghost" id="cancelProg">Cancelar</button><button class="btn" id="confirmProg"><svg class="ic"><use href="#i-check"/></svg>Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal" id="modalNumero" role="dialog" aria-modal="true" aria-labelledby="modalNumTitle">
+  <div class="sheet">
+    <h3 id="modalNumTitle">Adicionar número</h3>
+    <div class="two">
+      <div class="field"><label for="numNumero">Número</label><input id="numNumero" inputmode="numeric" placeholder="Ex: 33" autocomplete="off"></div>
+      <div class="field"><label for="numPadrao">Padrão</label><input id="numPadrao" inputmode="decimal" placeholder="Ex: 15.09" autocomplete="off"></div>
+    </div>
+    <div class="two">
+      <div class="field"><label for="numTotalPares">Pares da carga</label><input id="numTotalPares" inputmode="decimal" placeholder="Ex: 160" autocomplete="off"></div>
+      <div class="field"><label for="numParesCheia">Pares por caixa</label><input id="numParesCheia" inputmode="decimal" placeholder="Ex: 20" autocomplete="off"></div>
+    </div>
+    <div class="acts"><button class="btn ghost" id="cancelNum">Cancelar</button><button class="btn" id="confirmNum"><svg class="ic"><use href="#i-check"/></svg>Salvar</button></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY='horas_maquinas_v3';
+let data={maquinas:[]},currentMaqId=null,currentProgId=null,editingProgId=null,editingNumId=null;
+const openNums=new Set();
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ic=n=>`<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+
+function initMaquinas(){
+  if(!data.maquinas||data.maquinas.length!==6){
+    data.maquinas=[];
+    for(let i=1;i<=6;i++){const id=String(i).padStart(2,'0');data.maquinas.push({id,nome:`Máq. ${id}`,saldo:0,programas:[]});}
+    save();
+  }
+}
+function parseHours(str){
+  if(!str||!String(str).trim())return 0;
+  str=String(str).trim().replace(',','.');
+  if(str.includes(':')){const[h,m]=str.split(':').map(n=>parseInt(n,10)||0);if(m>=60||m<0||h<0)return NaN;return h+m/60;}
+  const n=parseFloat(str);return isNaN(n)?NaN:n;
+}
+function formatHours(h){
+  if(isNaN(h)||h<0)return '00:00';
+  const t=Math.round(h*60);
+  return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
+}
+function parseNum(s){return s?(parseFloat(String(s).replace(',','.'))||0):0;}
+function load(){try{const r=localStorage.getItem(STORAGE_KEY);if(r)data=JSON.parse(r);}catch(e){}initMaquinas();}
+function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch(e){}}
+
+function calcNumber(num){
+  const totalPares=parseNum(num.totalPares),paresCheia=parseNum(num.paresCheia),padrao=parseNum(num.padrao);
+  const qtdCheias=paresCheia>0?Math.floor(totalPares/paresCheia):0;
+  const ultima=paresCheia>0?totalPares%paresCheia:0;
+  const totalCaixas=qtdCheias+(ultima>0?1:0);
+  const totalHoras=padrao>0?totalPares/padrao:0;
+  const marcadas=num.marcadas||[];
+  let prod=0;
+  for(let i=0;i<totalCaixas;i++)if(marcadas[i])prod+=i<qtdCheias?paresCheia:ultima;
+  const horasProduzidas=padrao>0?prod/padrao:0;
+  const restante=Math.max(0,totalHoras-horasProduzidas);
+  return{totalHoras,horasProduzidas,restante,totalCaixas,paresCheia,ultima,qtdCheias,totalPares};
+}
+function calcProgram(prog){
+  let maxTotal=0,maxRest=0,segurando=null;
+  const nums=prog.numeros||[];
+  nums.forEach(n=>{const c=calcNumber(n);if(c.totalHoras>maxTotal)maxTotal=c.totalHoras;if(c.restante>maxRest){maxRest=c.restante;segurando={numero:n.numero,restante:c.restante};}});
+  return{produzidas:Math.max(0,maxTotal-maxRest),segurando,concluido:nums.length>0&&nums.every(n=>calcNumber(n).restante<=0.01)};
+}
+function calcMaquina(m){let t=m.saldo||0;(m.programas||[]).forEach(p=>t+=calcProgram(p).produzidas);return t;}
+function calcTotalGeral(){return data.maquinas.reduce((s,m)=>s+calcMaquina(m),0);}
+function getHoldingMaquina(m){
+  let max=0,seg=null;
+  (m.programas||[]).forEach(p=>{const c=calcProgram(p);if(c.segurando&&c.segurando.restante>max){max=c.segurando.restante;seg=c.segurando;}});
+  return seg;
+}
+const getMaq=()=>data.maquinas.find(m=>m.id===currentMaqId);
+const getProg=()=>{const m=getMaq();return m?(m.programas||[]).find(p=>p.id===currentProgId):null;};
+
+function renderHome(){
+  const list=$('maquinasList');
+  list.innerHTML=data.maquinas.map(m=>{
+    const h=getHoldingMaquina(m);
+    return `<button class="mcard" data-id="${m.id}">
+      <div class="top"><span class="name">${esc(m.nome)}</span><span class="badge">${ic('cog')}</span></div>
+      <small>Horas baixadas</small><div class="hours">${formatHours(calcMaquina(m))}</div>
+      <small>Atrasado</small><div class="chip ${h?'late':''}">${h?ic('warn'):''}<span>${h?`Nº ${esc(h.numero)} (${formatHours(h.restante)})`:'—'}</span></div>
+    </button>`;
+  }).join('');
+  list.querySelectorAll('.mcard').forEach(el=>el.onclick=()=>openMaquina(el.dataset.id));
+}
+
+function renderMaquina(){
+  const maq=getMaq();if(!maq)return;
+  const progs=(maq.programas||[]).map(p=>{
+    const c=calcProgram(p);
+    return `<button class="pcard" data-id="${p.id}">
+      <div class="row"><div><div class="name">${esc(p.nome||'Programa')}</div><div class="sub">Doc: ${esc(p.documento||'—')}</div></div><div class="hours">${formatHours(c.produzidas)}</div></div>
+      <span class="status ${c.concluido?'done':''}">${ic(c.concluido?'check':'clock')}${c.concluido?'Concluído':'Em andamento'}</span>
+    </button>`;
+  }).join('');
+  $('maquinaContent').innerHTML=`
+    <h2 class="title">${esc(maq.nome)}</h2>
+    <div class="saldo">
+      <div><label for="saldoMaq">Horas anteriores / saldo desta máquina</label>
+      <input id="saldoMaq" inputmode="text" value="${maq.saldo>0?formatHours(maq.saldo):''}" placeholder="Ex: 02:00" autocomplete="off"></div>
+      <button class="btn" id="salvarSaldoMaq">${ic('save')}Salvar saldo</button>
+    </div>
+    <div class="cols">${progs||`<div class="empty">${ic('box')}Nenhum programa nesta máquina.<br>Toque em “Novo programa” para começar.</div>`}</div>
+    <div class="add"><button class="btn" id="btnNovoProg">${ic('plus')}Novo programa</button></div>`;
+  $('maquinaContent').querySelectorAll('.pcard').forEach(el=>el.onclick=()=>openProgram(el.dataset.id));
+  $('btnNovoProg').onclick=()=>openModalPrograma();
+  const doSaldo=()=>{
+    const h=parseHours($('saldoMaq').value);
+    if(isNaN(h)||h<0)return alert('Saldo inválido. Use HH:MM.');
+    maq.saldo=h;save();renderMaquina();renderHome();
+  };
+  $('salvarSaldoMaq').onclick=doSaldo;
+  $('saldoMaq').onkeydown=e=>{if(e.key==='Enter')doSaldo();};
+}
+
+function holdingHtml(c){
+  return c.segurando
+    ?`<div class="holding">${ic('warn')}<div><small>Segurando a hora</small><b>Nº ${esc(c.segurando.numero)} — ${formatHours(c.segurando.restante)}</b></div></div>`
+    :`<div class="holding idle">${ic('check')}<div><small>Nenhum número pendente</small><b>—</b></div></div>`;
+}
+function numberHtml(n){
+  const cn=calcNumber(n),mar=n.marcadas||[];
+  let boxes='';
+  for(let i=0;i<cn.totalCaixas;i++){
+    const p=i<cn.qtdCheias?cn.paresCheia:cn.ultima;
+    boxes+=`<button type="button" class="box ${mar[i]?'on':''}" data-num="${n.id}" data-idx="${i}" aria-pressed="${!!mar[i]}">${i+1}<span class="p">${Math.round(p)}p</span></button>`;
+  }
+  const pct=cn.totalHoras>0?Math.min(100,cn.horasProduzidas/cn.totalHoras*100):0;
+  return `<div class="nblock ${openNums.has(n.id)?'open':''}" data-block="${n.id}">
+    <button class="nhead" data-toggle="${n.id}" aria-expanded="${openNums.has(n.id)}">
+      <span class="num">Nº ${esc(n.numero)}<small>Padrão ${esc(n.padrao)} · ${cn.qtdCheias} cheias${cn.ultima>0?' + '+Math.round(cn.ultima)+'p':''} · ${esc(n.totalPares)}p</small></span>
+      <span class="rest">${formatHours(cn.restante)}</span><span class="chev">${ic('chev')}</span>
+    </button>
+    <div class="prog"><i style="width:${pct}%"></i></div>
+    <div class="det"><div><div class="in">
+      <div class="boxes">${boxes||'<span class="sub">Sem caixas</span>'}</div>
+      <div class="acts">
+        <button class="btn ghost sm" data-edit-num="${n.id}">${ic('edit')}Editar</button>
+        <button class="btn danger sm" data-del-num="${n.id}">${ic('trash')}Remover</button>
+      </div>
+    </div></div></div>
+  </div>`;
+}
+
+function renderProgram(){
+  const prog=getProg();if(!prog)return;
+  const c=calcProgram(prog);
+  $('programaContent').innerHTML=`
+    <div class="phead">
+      <div><h2 class="title">${esc(prog.nome)}</h2><p class="sub">Documento: ${esc(prog.documento||'—')}</p></div>
+      <button class="btn ghost sm" id="btnEditProg">${ic('edit')}Editar</button>
+    </div>
+    <div id="holdingSlot">${holdingHtml(c)}</div>
+    <div class="cols" id="numList">${(prog.numeros||[]).map(numberHtml).join('')||`<div class="empty">${ic('box')}Nenhuma numeração cadastrada.</div>`}</div>
+    <div class="add">
+      <button class="btn" id="btnAddNum">${ic('plus')}Adicionar número</button>
+      <button class="btn danger" id="btnDelProg">${ic('trash')}Apagar programa</button>
+    </div>`;
+  const root=$('programaContent');
+  root.querySelectorAll('[data-toggle]').forEach(el=>el.onclick=()=>{
+    const id=el.dataset.toggle,b=el.closest('.nblock');
+    const open=!b.classList.contains('open');
+    b.classList.toggle('open',open);el.setAttribute('aria-expanded',open);
+    open?openNums.add(id):openNums.delete(id);
+  });
+  root.querySelectorAll('.box').forEach(el=>el.onclick=()=>toggleBox(el));
+  root.querySelectorAll('[data-del-num]').forEach(el=>el.onclick=()=>deleteNumber(el.dataset.delNum));
+  root.querySelectorAll('[data-edit-num]').forEach(el=>el.onclick=()=>openModalNumero(el.dataset.editNum));
+  $('btnAddNum').onclick=()=>openModalNumero();
+  $('btnEditProg').onclick=()=>openModalPrograma(prog.id);
+  $('btnDelProg').onclick=deleteProgram;
+}
+
+/* Marca a caixa e atualiza só os elementos afetados: o card continua aberto
+   e as outras caixas seguem disponíveis para seleção. */
+function toggleBox(el){
+  const prog=getProg();if(!prog)return;
+  const num=(prog.numeros||[]).find(n=>n.id===el.dataset.num);if(!num)return;
+  if(!num.marcadas)num.marcadas=[];
+  const idx=parseInt(el.dataset.idx,10);
+  num.marcadas[idx]=!num.marcadas[idx];
+  save();
+  el.classList.toggle('on',!!num.marcadas[idx]);
+  el.setAttribute('aria-pressed',!!num.marcadas[idx]);
+  const cn=calcNumber(num),b=el.closest('.nblock');
+  b.querySelector('.rest').textContent=formatHours(cn.restante);
+  b.querySelector('.prog i').style.width=(cn.totalHoras>0?Math.min(100,cn.horasProduzidas/cn.totalHoras*100):0)+'%';
+  $('holdingSlot').innerHTML=holdingHtml(calcProgram(prog));
+}
+
+function openMaquina(id){
+  currentMaqId=id;
+  $('screen-home').classList.add('back');
+  $('screen-maquina').classList.remove('hidden');
+  $('screen-maquina').scrollTop=0;
+  renderMaquina();
+}
+function closeMaquina(){
+  $('screen-maquina').classList.add('hidden');
+  $('screen-home').classList.remove('back');
+  currentMaqId=null;renderHome();
+}
+function openProgram(id){
+  currentProgId=id;
+  $('screen-maquina').classList.add('back');
+  $('screen-programa').classList.remove('hidden');
+  $('screen-programa').scrollTop=0;
+  renderProgram();
+}
+function closeProgram(){
+  $('screen-programa').classList.add('hidden');
+  $('screen-maquina').classList.remove('back');
+  currentProgId=null;renderMaquina();
+}
+
+function showModal(id,focusId){
+  $(id).classList.add('show');
+  setTimeout(()=>$(focusId).focus(),60);
+}
+function openModalPrograma(editId=null){
+  editingProgId=editId;
+  const maq=getMaq();
+  const prog=editId&&maq?(maq.programas||[]).find(p=>p.id===editId):null;
+  $('modalProgTitle').textContent=editId?'Editar programa':'Novo programa';
+  $('progNome').value=prog?prog.nome:'';
+  $('progDoc').value=prog?(prog.documento||''):'';
+  showModal('modalPrograma','progNome');
+}
+function openModalNumero(editId=null){
+  editingNumId=editId;
+  const prog=getProg();
+  const num=editId&&prog?(prog.numeros||[]).find(n=>n.id===editId):null;
+  $('modalNumTitle').textContent=editId?'Editar número':'Adicionar número';
+  $('numNumero').value=num?num.numero:'';
+  $('numPadrao').value=num?num.padrao:'';
+  $('numTotalPares').value=num?num.totalPares:'';
+  $('numParesCheia').value=num?num.paresCheia:'';
+  showModal('modalNumero','numNumero');
+}
+function closeModals(){
+  $('modalPrograma').classList.remove('show');
+  $('modalNumero').classList.remove('show');
+  editingProgId=null;editingNumId=null;
+}
+
+function saveProgram(){
+  const nome=$('progNome').value.trim(),doc=$('progDoc').value.trim();
+  if(!nome)return alert('Informe o código do programa.');
+  const maq=getMaq();if(!maq)return;
+  if(!maq.programas)maq.programas=[];
+  if(editingProgId){const p=maq.programas.find(p=>p.id===editingProgId);if(p){p.nome=nome;p.documento=doc;}}
+  else maq.programas.push({id:Date.now().toString(),nome,documento:doc,numeros:[]});
+  save();closeModals();renderMaquina();
+  if(currentProgId)renderProgram();
+}
+function saveNumber(){
+  const prog=getProg();if(!prog)return;
+  const numero=$('numNumero').value.trim(),padrao=$('numPadrao').value.trim();
+  const totalPares=$('numTotalPares').value.trim(),paresCheia=$('numParesCheia').value.trim();
+  if(!numero||!padrao||!totalPares||!paresCheia)return alert('Preencha todos os campos.');
+  if(!prog.numeros)prog.numeros=[];
+  if(editingNumId){const n=prog.numeros.find(n=>n.id===editingNumId);if(n){n.numero=numero;n.padrao=padrao;n.totalPares=totalPares;n.paresCheia=paresCheia;}}
+  else{const id=Date.now().toString();prog.numeros.push({id,numero,padrao,totalPares,paresCheia,marcadas:[]});openNums.add(id);}
+  save();closeModals();renderProgram();
+}
+function deleteNumber(numId){
+  if(!confirm('Remover este número?'))return;
+  const prog=getProg();if(!prog)return;
+  prog.numeros=(prog.numeros||[]).filter(n=>n.id!==numId);
+  openNums.delete(numId);save();renderProgram();
+}
+function deleteProgram(){
+  if(!confirm('Apagar este programa?'))return;
+  const maq=getMaq();if(!maq)return;
+  maq.programas=(maq.programas||[]).filter(p=>p.id!==currentProgId);
+  save();closeProgram();
+}
+
+load();renderHome();
+$('btnVoltarMaq').onclick=closeMaquina;
+$('btnVoltarProg').onclick=closeProgram;
+$('confirmProg').onclick=saveProgram;
+$('cancelProg').onclick=closeModals;
+$('confirmNum').onclick=saveNumber;
+$('cancelNum').onclick=closeModals;
+document.querySelectorAll('.modal').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)closeModals();});
+  m.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&e.target.tagName==='INPUT')m.querySelector('.btn:not(.ghost)').click();
+  });
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModals();});
+</script>
+</body>
+</html>
