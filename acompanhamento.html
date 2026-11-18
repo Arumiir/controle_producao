@@ -131,6 +131,11 @@ input:focus{border-color:var(--brand);background:var(--surface)}
     <section class="hero">
       <h1>Acompanhamento de Horas</h1><p>Máquinas 01 a 06</p>
     </section>
+    <div style="display:flex;gap:.5rem;margin-bottom:.8rem;flex-wrap:wrap">
+      <button class="btn ghost sm" id="btnExport">Exportar dados</button>
+      <button class="btn ghost sm" id="btnImport">Importar dados</button>
+      <input type="file" id="fileImport" accept=".json" style="display:none">
+    </div>
     <div class="grid" id="maquinasList"></div>
   </div></main>
 
@@ -174,7 +179,7 @@ const STORAGE_KEY='horas_maquinas_v3';
 let data={maquinas:[]},currentMaqId=null,currentProgId=null,editingProgId=null,editingNumId=null;
 const openNums=new Set();
 const $=id=>document.getElementById(id);
-const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&','<':'<','>':'>','"':'"',"'":'&#39;'}[c]));
 const ic=n=>`<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
 
 function initMaquinas(){
@@ -196,7 +201,48 @@ function formatHours(h){
   return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
 }
 function parseNum(s){return s?(parseFloat(String(s).replace(',','.'))||0):0;}
-function load(){try{const r=localStorage.getItem(STORAGE_KEY);if(r)data=JSON.parse(r);}catch(e){}initMaquinas();}
+function load(){
+  // Tenta a chave atual (v3)
+  try {
+    const r = localStorage.getItem(STORAGE_KEY);
+    if (r) {
+      data = JSON.parse(r);
+      initMaquinas();
+      return;
+    }
+  } catch(e) {}
+
+  // Tenta chaves anteriores e migra
+  const oldKeys = ['horas_maquinas_v2', 'horas_acompanhamento_v1'];
+  for (const key of oldKeys) {
+    try {
+      const r = localStorage.getItem(key);
+      if (r) {
+        const old = JSON.parse(r);
+        if (old.maquinas && Array.isArray(old.maquinas)) {
+          data.maquinas = old.maquinas;
+          if (typeof old.saldo === 'number' && data.maquinas[0]) data.maquinas[0].saldo = old.saldo;
+        } else if (old.programas && Array.isArray(old.programas)) {
+          data.maquinas = [];
+          for (let i = 1; i <= 6; i++) {
+            data.maquinas.push({
+              id: String(i).padStart(2,'0'),
+              nome: `Máq. ${String(i).padStart(2,'0')}`,
+              saldo: (i === 1 && typeof old.saldo === 'number') ? old.saldo : 0,
+              programas: i === 1 ? old.programas : []
+            });
+          }
+        }
+        save();
+        localStorage.removeItem(key);
+        initMaquinas();
+        return;
+      }
+    } catch(e) {}
+  }
+
+  initMaquinas();
+}
 function save(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(data));}catch(e){}}
 
 function calcNumber(num){
@@ -328,8 +374,6 @@ function renderProgram(){
   $('btnDelProg').onclick=deleteProgram;
 }
 
-/* Marca a caixa e atualiza só os elementos afetados: o card continua aberto
-   e as outras caixas seguem disponíveis para seleção. */
 function toggleBox(el){
   const prog=getProg();if(!prog)return;
   const num=(prog.numeros||[]).find(n=>n.id===el.dataset.num);if(!num)return;
@@ -433,7 +477,44 @@ function deleteProgram(){
   save();closeProgram();
 }
 
+function exportData(){
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'acompanhamento-horas-backup.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importData(file){
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!imported.maquinas || !Array.isArray(imported.maquinas)) {
+        alert('Arquivo inválido.');
+        return;
+      }
+      if (!confirm('Isso vai substituir todos os dados atuais. Continuar?')) return;
+      data = imported;
+      initMaquinas();
+      save();
+      renderHome();
+      alert('Dados importados com sucesso!');
+    } catch(err) {
+      alert('Erro ao ler o arquivo.');
+    }
+  };
+  reader.readAsText(file);
+}
+
 load();renderHome();
+$('btnExport').onclick = exportData;
+$('btnImport').onclick = () => $('fileImport').click();
+$('fileImport').onchange = (e) => {
+  if (e.target.files && e.target.files[0]) importData(e.target.files[0]);
+  e.target.value = '';
+};
 $('btnVoltarMaq').onclick=closeMaquina;
 $('btnVoltarProg').onclick=closeProgram;
 $('confirmProg').onclick=saveProgram;
