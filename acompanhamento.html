@@ -131,11 +131,6 @@ input:focus{border-color:var(--brand);background:var(--surface)}
     <section class="hero">
       <h1>Acompanhamento de Horas</h1><p>Máquinas 01 a 06</p>
     </section>
-    <div style="display:flex;gap:.5rem;margin-bottom:.8rem;flex-wrap:wrap">
-      <button class="btn ghost sm" id="btnExport">Exportar dados</button>
-      <button class="btn ghost sm" id="btnImport">Importar dados</button>
-      <input type="file" id="fileImport" accept=".json" style="display:none">
-    </div>
     <div class="grid" id="maquinasList"></div>
   </div></main>
 
@@ -202,7 +197,6 @@ function formatHours(h){
 }
 function parseNum(s){return s?(parseFloat(String(s).replace(',','.'))||0):0;}
 function load(){
-  // Tenta a chave atual (v3)
   try {
     const r = localStorage.getItem(STORAGE_KEY);
     if (r) {
@@ -212,7 +206,6 @@ function load(){
     }
   } catch(e) {}
 
-  // Tenta chaves anteriores e migra
   const oldKeys = ['horas_maquinas_v2', 'horas_acompanhamento_v1'];
   for (const key of oldKeys) {
     try {
@@ -265,7 +258,6 @@ function calcProgram(prog){
   return{produzidas:Math.max(0,maxTotal-maxRest),segurando,concluido:nums.length>0&&nums.every(n=>calcNumber(n).restante<=0.01)};
 }
 function calcMaquina(m){let t=m.saldo||0;(m.programas||[]).forEach(p=>t+=calcProgram(p).produzidas);return t;}
-function calcTotalGeral(){return data.maquinas.reduce((s,m)=>s+calcMaquina(m),0);}
 function getHoldingMaquina(m){
   let max=0,seg=null;
   (m.programas||[]).forEach(p=>{const c=calcProgram(p);if(c.segurando&&c.segurando.restante>max){max=c.segurando.restante;seg=c.segurando;}});
@@ -477,44 +469,7 @@ function deleteProgram(){
   save();closeProgram();
 }
 
-function exportData(){
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'acompanhamento-horas-backup.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-function importData(file){
-  const reader = new FileReader();
-  reader.onload = function(e){
-    try {
-      const imported = JSON.parse(e.target.result);
-      if (!imported.maquinas || !Array.isArray(imported.maquinas)) {
-        alert('Arquivo inválido.');
-        return;
-      }
-      if (!confirm('Isso vai substituir todos os dados atuais. Continuar?')) return;
-      data = imported;
-      initMaquinas();
-      save();
-      renderHome();
-      alert('Dados importados com sucesso!');
-    } catch(err) {
-      alert('Erro ao ler o arquivo.');
-    }
-  };
-  reader.readAsText(file);
-}
-
 load();renderHome();
-$('btnExport').onclick = exportData;
-$('btnImport').onclick = () => $('fileImport').click();
-$('fileImport').onchange = (e) => {
-  if (e.target.files && e.target.files[0]) importData(e.target.files[0]);
-  e.target.value = '';
-};
 $('btnVoltarMaq').onclick=closeMaquina;
 $('btnVoltarProg').onclick=closeProgram;
 $('confirmProg').onclick=saveProgram;
